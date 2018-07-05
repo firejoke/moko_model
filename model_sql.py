@@ -16,6 +16,6 @@ class OrmSql(object):
 		self.Base.metadata.create_all(self.engine)
 		self.session.commit()
 	
-	def add_sql(self, d: dict):
-		self.session.add(self.models.update_d(d))
+	# def add_sql(self, d: dict):
+	# 	self.session.add(self.models.update_d())
 

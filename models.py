@@ -66,8 +66,8 @@ class ModelInfo(DbModels):
 	work_experience = Column(Text, nullable = True)
 
 
-class Contact(DbModels):
-	pass
+# class Contact(DbModels):
+# 	pass
 
 
 class U(object):
