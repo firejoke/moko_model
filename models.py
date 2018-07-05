@@ -14,21 +14,21 @@ class DbModels(Base):
 				self.age = age
 				self.sex = sex
 			def update_d(self, d):
-				if set(d).issubset(set(self.__dict__)):
-					if 'id' in d.keys():
-						return "'id' can not be in d.keys"
+				if 'id' not in d.keys():
+					if set(d).issubset(set(self.__dict__)):
+						raise KeyError('%s.keys is range out self' % d)
 					else:
 						for k, v in d.items():
 							setattr(self, k, v)
 				else:
-					raise KeyError('%s.keys is range out self'%d)
+					raise KeyError("'id' can not be in d.keys")
 		"""
-		if 'id' in d.keys():
+		if 'id' not in d.keys():
 			if set(d).issubset(set(self.__dict__)):
-				return 'd.keys is range out Model.__dict__.keys'
-			else:
 				for k, v in d.items():
 					setattr(self, k, v)
+			else:
+				return 'd.keys is range out Model.__dict__.keys'
 		else:
 			return "'id' can not be in d.keys"
 
@@ -71,20 +71,18 @@ class Contact(DbModels):
 
 
 class U(object):
-	name = 'yy'
-	age = 20
-	sex = 'girl'
+	def __init__(self):
+		self.name = 'yy'
+		self.age = 20
+		self.sex = 'girl'
 	
 	def update_d(self, d):
-		if 'id' in d.keys():
-			if set(d).issubset(set(self.__dict__)):
-				raise KeyError('%s.keys is range out self' % d)
-			else:
-				for k, v in d.items():
-					setattr(self, k, v)
+		if set(d).issubset(set(self.__dict__)):
+			for k, v in d.items():
+				setattr(self, k, v)
 		else:
-			raise KeyError("'id' can not be in d.keys")
-			
+			raise KeyError('%s.keys is range out self' % d)
+
 
 class Sub(U):
 	money = 20000
