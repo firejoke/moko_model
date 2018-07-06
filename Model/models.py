@@ -3,10 +3,30 @@
 分对象存放，便于整个项目的轻量运行
 需要爬哪个数据，就调用哪个模型
 """
-from sqlalchemy import Column, Integer, String, Date, Text, ForeignKey
+from sqlalchemy import Column, Integer, String, Date, Text, ForeignKey, Table
 from sqlalchemy.orm import relationship
 
 from setting import Base
+
+
+# 经纪人
+class UserBroker(Base):
+	__tablename__ = 'user_broker'
+	id = Column(Integer, primary_key = True, autoincrement = True)
+	
+	def __repr__(self):
+		return "< model_name is %s >" % self.__name__
+
+
+# UserBroker与WomanModels的多对多中间表
+registrations = Table(
+		'UserBroker_WomanModels_Relation', Base.metadata,
+		Column('models_id', ForeignKey('woman_models.id'), primary_key = True, ),
+		Column('broker_id', ForeignKey('user_broker.id'), primary_key = True)
+		)
+UserBroker.woman_models = relationship(
+		'woman_models', secondary = registrations, back_populates = 'user_broker'
+		)
 
 
 class WomanModels(Base):
@@ -18,6 +38,13 @@ class WomanModels(Base):
 	job = Column(String(32), nullable = True)
 	# 点击量
 	hits = Column(Integer, nullable = True)
+	# 连接model_info与woman_models的双向关系
+	model_info = relationship(
+			'model_info', back_populates = 'woman_models', userlist = False
+			)
+	user_broker = relationship(
+			'user_broker', secondary = registrations, back_populates = 'woman_models'
+			)
 	
 	def __repr__(self):
 		return "< model_name is %s >" % self.__name__
@@ -45,17 +72,11 @@ class ModelInfo(Base):
 	# 血型
 	blood_group = Column(String(8))
 	model_id = Column(Integer, ForeignKey('woman_models.id'))
+	# 连接contact与model_info
+	contact = relationship('contact', back_populates = 'model_info', userlist = False)
 	
 	def __repr__(self):
 		return "< model_name is %s >" % self.__name__
-
-
-# 连接model_info与woman_models的双向关系
-WomanModels.model_info = relationship(
-		'model_info', order_by = 'model_info.id',
-		back_populates = 'woman_models',
-		userlist = False
-		)
 
 
 # 联系方式
@@ -69,11 +90,7 @@ class Contact(Base):
 	phone_b = Column(String(16), nullable = True)
 	wechat = Column(String(64), nullable = True)
 	qq = Column(String(16), nullable = True)
+	model_info_id = Column(Integer, ForeignKey('model_info.id'))
 	
 	def __repr__(self):
 		return "< model_name is %s >" % self.__name__
-
-
-# 经纪人
-class UserBroker(Base):
-	pass
