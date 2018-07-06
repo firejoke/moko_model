@@ -1,3 +1,6 @@
+"""
+使用SQLAlchemy
+"""
 from importlib import import_module
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -27,22 +30,17 @@ def get_db_uri(database: dict):
 	return '{}+{}://{}:{}@{}:{}/{}?charset={}'.format(db, drive, user, password, host, port, name, charset)
 
 
-"""
-使用SQLAlchemy
-"""
 # 创建连接数据库
 engine = create_engine(get_db_uri(DATABASE_DEFAULT), echo = True)
-
 # ORM基类
 Base = declarative_base(bind = engine)
-
-# 定义一个orm的入口 Session()类
+# 配置一个orm的写入数据库入口 Session()类
 Session = sessionmaker(bind = engine)
 # 实例化这个类，后面需要用这个实例来执行sql操作
 db_session = Session()
 
 
-def migrate(app_path: str = None):
+def migrate(model_path: str = None):
 	"""
 	定义一个实现orm映射model到DB的方法
 	因为在commit之前，所有的表创建与操作实际上是在内存里
@@ -57,7 +55,7 @@ def migrate(app_path: str = None):
 	"""
 	try:
 		# 动态导入要映射的模型
-		import_module(app_path + "." + "models" if app_path else "models")
+		import_module(model_path + "." + "models" if model_path else "models")
 		# 把表创建进内存
 		Base.metadata.create_all(engine)
 		# 把内存里的表写进数据库
