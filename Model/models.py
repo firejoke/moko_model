@@ -1,3 +1,8 @@
+"""
+模特对应的数据对象模型
+分对象存放，便于整个项目的轻量运行
+需要爬哪个数据，就调用哪个模型
+"""
 from sqlalchemy import Column, Integer, String, Date, Text, ForeignKey
 
 from setting import Base
@@ -34,10 +39,10 @@ class ModelInfo(Base):
 	shoe_size = Column(Integer, nullable = True)
 	# 工作经历
 	work_experience = Column(Text, nullable = True)
-
+	
 	def __init__(self):
 		super(ModelInfo, self)
-		
-		
+
+
 class Contact(Base):
 	pass
