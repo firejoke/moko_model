@@ -4,7 +4,6 @@ from setting import Base
 
 
 class WomanModels(Base):
-	# 限制字段的范围，毕竟爬下来的数据可能会有点多，优化一下内存也是极好的
 	__tablename__ = 'models'
 	id = Column(Integer, primary_key = True, autoincrement = True)
 	# 发布人
@@ -36,5 +35,7 @@ class ModelInfo(Base):
 	# 工作经历
 	work_experience = Column(Text, nullable = True)
 
+	def __init__(self):
+		super(ModelInfo, self)
 # class Contact(DbModels):
 # 	pass

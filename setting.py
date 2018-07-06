@@ -1,3 +1,4 @@
+from importlib import import_module
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
@@ -41,13 +42,25 @@ Session = sessionmaker(bind = engine)
 db_session = Session()
 
 
-# 定义一个实现orm映射model到DB的类
-class OrmSql(object):
-	def __init__(self):
-		self.engine = engine
-		self.base = Base
-		self.session = db_session
+def migrate(app_path: str = None):
+	"""
+	定义一个实现orm映射model到DB的方法
+	因为在commit之前，所有的表创建与操作实际上是在内存里
+	试着用实例化某个模型的方式来实现自由映射模型
+	避免用create_all()来映射所有继承Base的模型
+	但不行
+	所以尝试动态导入模型来自由映射
+		main_dir/
+			test/
+				models
+	import_module("test.models")
+	"""
+	try:
+		# 动态导入要映射的模型
+		import_module(app_path + "." + "models" if app_path else "models")
 		# 把表创建进内存
-		self.base.metadata.create_all(self.engine)
+		Base.metadata.create_all(engine)
 		# 把内存里的表写进数据库
-		self.session.commit()
+		db_session.commit()
+	except (ImportError, TypeError):
+		db_session.rollback()
