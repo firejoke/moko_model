@@ -9,6 +9,10 @@ from setting import HEADERS_DEFAULT, URL_DEFAULT
 
 if __name__ == '__main__':
 	# [print(dir_name) for dir_name in os.listdir('./')]
+	"""
+	Terminal
+		$ python3 moko_spider.py model_name
+	"""
 	model_path = os.path.join(os.getcwd(), sys.argv[1].title(), 'config')
 	with open(model_path, 'r') as md:
 		index_url = md.read()
