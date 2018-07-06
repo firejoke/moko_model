@@ -1,0 +1,8 @@
+DB=mysql
+USER=guest
+PASSWORD=test_guest
+HOST=localhost
+PORT=3306
+NAME=moko
+DRIVE=pymysql
+CHARSET=utf8

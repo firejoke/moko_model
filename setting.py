@@ -1,42 +1,33 @@
 """
 使用SQLAlchemy
 """
+import logging
+import re
 from importlib import import_module
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 
-DATABASE_DEFAULT = {
-	'DB': 'mysql',
-	'USER': 'guest',
-	'PASSWORD': 'test_guest',
-	'HOST': 'localhost',
-	'PORT': '3306',
-	'NAME': 'moko',
-	'DRIVE': 'pymysql',
-	'CHARSET': 'utf8'
-	}
-
-
-def get_db_uri(database: dict):
-	db = database.get('DB') or 'mysql'
-	user = database.get('USER') or 'root'
-	password = database.get('PASSWORD') or 'root'
-	host = database.get('HOST') or 'localhost'
-	port = database.get('PORT') or '3306'
-	drive = database.get('DRIVE') or 'pymysql'
-	name = database.get('NAME')
-	charset = database.get('CHARSET') or 'utf8'
-	return '{}+{}://{}:{}@{}:{}/{}?charset={}'.format(db, drive, user, password, host, port, name, charset)
-
+# 获取数据库配置文档
+with open('db_config', 'r') as f:
+	f = f.read()
+	db = re.search(r"DB=(\w.*)?", f).group()[3:] or 'mysql'
+	user = re.search(r"USER=(\w.*)?", f).group()[5:] or 'root'
+	password = re.search(r"PASSWORD=(\w.*)?", f).group()[9:] or 'root'
+	host = re.search(r"HOST=(\w.*)?", f).group()[5:] or 'localhost'
+	port = re.search(r"PORT=(\w.*)?", f).group()[5:] or '3306'
+	drive = re.search(r"DRIVE=(\w.*)?", f).group()[6:] or 'pymysql'
+	name = re.search(r"NAME=(\w.*)?", f).group()[5:]
+	charset = re.search(r"CHARSET=(\w.*)?", f, flags = re.I).group()[9:] or 'utf8'
+	DATABASE_DEFAULT = '{}+{}://{}:{}@{}:{}/{}?charset={}'.format(db, drive, user, password, host, port, name, charset)
 
 # 创建连接数据库
-engine = create_engine(get_db_uri(DATABASE_DEFAULT), echo = True)
+engine = create_engine(DATABASE_DEFAULT, echo = True)
 # ORM基类
 Base = declarative_base(bind = engine)
-# 配置一个orm的写入数据库入口 Session()类
+# 配置orm数据库入口 Session()类
 Session = sessionmaker(bind = engine)
-# 实例化这个类，后面需要用这个实例来执行sql操作
+# 实例化，后面需要用这个实例来执行sql操作
 db_session = Session()
 
 
