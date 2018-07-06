@@ -51,8 +51,11 @@ class ModelInfo(Base):
 
 
 # 连接model_info与woman_models的双向关系
-WomanModels.model_info = relationship('model_info', order_by = 'model_info.id', back_populates = 'woman_models',
-		userlist = False)
+WomanModels.model_info = relationship(
+		'model_info', order_by = 'model_info.id',
+		back_populates = 'woman_models',
+		userlist = False
+		)
 
 
 # 联系方式
