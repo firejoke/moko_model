@@ -3,11 +3,13 @@
 分对象存放，便于整个项目的轻量运行
 需要爬哪个数据，就调用哪个模型
 """
+import logging
+from importlib import import_module
+
 from sqlalchemy import Column, Integer, String, Date, Text, ForeignKey, Table
 from sqlalchemy.orm import relationship
 
-from setting import Base
-
+from setting import Base, db_session
 
 # 经纪人
 class UserBroker(Base):
@@ -17,7 +19,7 @@ class UserBroker(Base):
 	broker = Column(String(16), nullable = True)
 	broker_phone = Column(String(32), nullable = True)
 	email = Column(String(128), nullable = True)
-	
+
 	def __repr__(self):
 		return "< model_name is %s, table_name: %s, model_items>" % self.__name__, self.__tablename__, \
 			vars(self.__class__).items()
@@ -43,15 +45,14 @@ class WomanModels(Base):
 	# 点击量
 	hits = Column(Integer, nullable = True)
 	model_info = relationship(
-			'model_info', back_populates = 'woman_models', userlist = False
+			'model_info', back_populates = 'woman_models', uselist = False
 			)
 	user_broker = relationship(
 			'user_broker', secondary = model_broker, back_populates = 'woman_models'
 			)
-	
+
 	def __repr__(self):
-		return "< model_name is %s, table_name: %s, model_items>" % self.__name__, self.__tablename__, \
-			vars(self.__class__).items()
+		return "< model_name is %s, table_name: %s >" % self.__name__, self.__tablename__
 
 
 # woman_models与job的中间表
@@ -75,8 +76,8 @@ class Job(Base):
 	# 工作经历
 	experience = Column(Text, nullable = True)
 	models = relationship('woman_models', secondary = model_job, back_populates = 'job')
-	job_price = relationship('job_price', back_populates = 'job', userlist = False)
-	
+	job_price = relationship('job_price', back_populates = 'job', uselist = False)
+
 	def __repr__(self):
 		return "< model_name is %s, table_name: %s, model_items>" % self.__name__, self.__tablename__, \
 			vars(self.__class__).items()
@@ -89,7 +90,7 @@ class JobPrice(Base):
 	job_name = Column(String(128))
 	price = Column(Integer)
 	job_id = Column(Integer, ForeignKey('job.id'))
-	
+
 	def __repr__(self):
 		return "< model_name is %s, table_name: %s, model_items>" % self.__name__, self.__tablename__, \
 			vars(self.__class__).items()
@@ -117,9 +118,9 @@ class ModelInfo(Base):
 	# 血型
 	blood_group = Column(String(8), nullable = True)
 	model_id = Column(Integer, ForeignKey('woman_models.id'))
-	contact = relationship('contact', back_populates = 'model_info', userlist = False)
-	school = relationship('school', back_populates = 'model_info', userlist = False)
-	
+	contact = relationship('contact', back_populates = 'model_info', uselist = False)
+	school = relationship('school', back_populates = 'model_info', uselist = False)
+
 	def __repr__(self):
 		return "< model_name is %s, table_name: %s, model_items>" % self.__name__, self.__tablename__, \
 			vars(self.__class__).items()
@@ -138,7 +139,7 @@ class Contact(Base):
 	wechat = Column(String(64), nullable = True)
 	qq = Column(String(16), nullable = True)
 	model_info_id = Column(Integer, ForeignKey('model_info.id'))
-	
+
 	def __repr__(self):
 		return "< model_name is %s, table_name: %s, model_items>" % self.__name__, self.__tablename__, \
 			vars(self.__class__).items()
@@ -149,7 +150,7 @@ class School(Base):
 	id = Column(Integer, primary_key = True, autoincrement = True)
 	school_name = Column(String(128), nullable = True)
 	model_info_id = Column(Integer, ForeignKey('model_info.id'))
-	
+
 	def __repr__(self):
 		return "< model_name is %s, table_name: %s, model_items>" % self.__name__, self.__tablename__, \
 			vars(self.__class__).items()
