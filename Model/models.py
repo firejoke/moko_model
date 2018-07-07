@@ -13,19 +13,25 @@ from setting import Base
 class UserBroker(Base):
 	__tablename__ = 'user_broker'
 	id = Column(Integer, primary_key = True, autoincrement = True)
+	company = Column(String(128), nullable = True, index = True)
+	broker = Column(String(16), nullable = True)
+	broker_phone = Column(String(32), nullable = True)
+	email = Column(String(128), nullable = True)
 	
 	def __repr__(self):
-		return "< model_name is %s >" % self.__name__
+		return "< model_name is %s, table_name: %s, model_items>" % self.__name__, self.__tablename__, \
+			vars(self.__class__).items()
 
 
 # UserBroker与WomanModels的多对多中间表
-registrations = Table(
+model_broker = Table(
 		'UserBroker_WomanModels_Relation', Base.metadata,
-		Column('models_id', ForeignKey('woman_models.id'), primary_key = True, ),
-		Column('broker_id', ForeignKey('user_broker.id'), primary_key = True)
+		Column('id', Integer, primary_key = True),
+		Column('models_id', Integer, ForeignKey('woman_models.id')),
+		Column('broker_id', Integer, ForeignKey('user_broker.id'))
 		)
 UserBroker.woman_models = relationship(
-		'woman_models', secondary = registrations, back_populates = 'user_broker'
+		'woman_models', secondary = model_broker, back_populates = 'user_broker'
 		)
 
 
@@ -33,9 +39,7 @@ class WomanModels(Base):
 	__tablename__ = 'woman_models'
 	id = Column(Integer, primary_key = True, autoincrement = True)
 	# 发布人
-	publisher = Column(String(64), nullable = True)
-	# 职业
-	job = Column(String(32), nullable = True)
+	publisher = Column(String(64), nullable = True, index = True)
 	# 点击量
 	hits = Column(Integer, nullable = True)
 	# 连接model_info与woman_models的双向关系
@@ -43,11 +47,49 @@ class WomanModels(Base):
 			'model_info', back_populates = 'woman_models', userlist = False
 			)
 	user_broker = relationship(
-			'user_broker', secondary = registrations, back_populates = 'woman_models'
+			'user_broker', secondary = model_broker, back_populates = 'woman_models'
 			)
+	# moko账号可以设置最多三个职业
+	job = relationship('job', back_populates = 'woman_models', )
 	
 	def __repr__(self):
-		return "< model_name is %s >" % self.__name__
+		return "< model_name is %s, table_name: %s, model_items>" % self.__name__, self.__tablename__, \
+			vars(self.__class__).items()
+
+
+model_job = Table(
+		'Model_Job_Relation', Base.metadata,
+		Column()
+		)
+
+
+class Job(Base):
+	__tablename__ = 'job'
+	id = Column(Integer, primary_key = True, autoincrement = True)
+	company = Column(String(128), nullable = True)
+	# 职位
+	position = Column(String(32), nullable = True, index = True)
+	# 工作经历
+	experience = Column(Text, nullable = True)
+	model_id = Column(Integer, ForeignKey('woman_models.id'))
+	job_price = relationship('job_price', back_populates = 'job', userlist = False)
+	
+	def __repr__(self):
+		return "< model_name is %s, table_name: %s, model_items>" % self.__name__, self.__tablename__, \
+			vars(self.__class__).items()
+
+
+# 接单价格
+class JobPrice(Base):
+	__tablename__ = 'job_price'
+	id = Column(Integer, primary_key = True, autoincrement = True)
+	job_name = Column(String(128))
+	price = Column(Integer)
+	job_id = Column(Integer, ForeignKey('job.id'))
+	
+	def __repr__(self):
+		return "< model_name is %s, table_name: %s, model_items>" % self.__name__, self.__tablename__, \
+			vars(self.__class__).items()
 
 
 class ModelInfo(Base):
@@ -56,7 +98,7 @@ class ModelInfo(Base):
 	# 生日
 	birthday = Column(Date, nullable = True)
 	# 星座
-	constellation = Column(String(16), nullable = True)
+	constellation = Column(String(16), nullable = True, index = True)
 	# 身高
 	height = Column(Integer, nullable = True)
 	# 体重
@@ -70,17 +112,20 @@ class ModelInfo(Base):
 	# 鞋码
 	shoe_size = Column(Integer, nullable = True)
 	# 血型
-	blood_group = Column(String(8))
+	blood_group = Column(String(8), nullable = True)
 	model_id = Column(Integer, ForeignKey('woman_models.id'))
 	# 连接contact与model_info
 	contact = relationship('contact', back_populates = 'model_info', userlist = False)
+	school = relationship('school', back_populates = 'model_info', userlist = False)
 	
 	def __repr__(self):
-		return "< model_name is %s >" % self.__name__
+		return "< model_name is %s, table_name: %s, model_items>" % self.__name__, self.__tablename__, \
+			vars(self.__class__).items()
 
 
 # 联系方式
 class Contact(Base):
+	__tablename__ = 'contact'
 	id = Column(Integer, primary_key = True, autoincrement = True)
 	# 真实姓名，估计没有
 	m_name = Column(String(128), nullable = True)
@@ -93,4 +138,16 @@ class Contact(Base):
 	model_info_id = Column(Integer, ForeignKey('model_info.id'))
 	
 	def __repr__(self):
-		return "< model_name is %s >" % self.__name__
+		return "< model_name is %s, table_name: %s, model_items>" % self.__name__, self.__tablename__, \
+			vars(self.__class__).items()
+
+
+class School(Base):
+	__tablename__ = 'school'
+	id = Column(Integer, primary_key = True, autoincrement = True)
+	school_name = Column(String(128), nullable = True)
+	model_info_id = Column(Integer, ForeignKey('model_info.id'))
+	
+	def __repr__(self):
+		return "< model_name is %s, table_name: %s, model_items>" % self.__name__, self.__tablename__, \
+			vars(self.__class__).items()
