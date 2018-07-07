@@ -42,25 +42,28 @@ class WomanModels(Base):
 	publisher = Column(String(64), nullable = True, index = True)
 	# 点击量
 	hits = Column(Integer, nullable = True)
-	# 连接model_info与woman_models的双向关系
 	model_info = relationship(
 			'model_info', back_populates = 'woman_models', userlist = False
 			)
 	user_broker = relationship(
 			'user_broker', secondary = model_broker, back_populates = 'woman_models'
 			)
-	# moko账号可以设置最多三个职业
-	job = relationship('job', back_populates = 'woman_models', )
 	
 	def __repr__(self):
 		return "< model_name is %s, table_name: %s, model_items>" % self.__name__, self.__tablename__, \
 			vars(self.__class__).items()
 
 
+# woman_models与job的中间表
 model_job = Table(
 		'Model_Job_Relation', Base.metadata,
-		Column()
+		Column('id', Integer, primary_key = True),
+		Column('model_id', Integer, ForeignKey('woman_models.id')),
+		Column('job_id', Integer, ForeignKey('job.id'))
 		)
+
+# moko账号可以设置最多三个职业
+WomanModels.job = relationship('job', secondary = model_job, back_populates = 'woman_models')
 
 
 class Job(Base):
@@ -71,7 +74,7 @@ class Job(Base):
 	position = Column(String(32), nullable = True, index = True)
 	# 工作经历
 	experience = Column(Text, nullable = True)
-	model_id = Column(Integer, ForeignKey('woman_models.id'))
+	models = relationship('woman_models', secondary = model_job, back_populates = 'job')
 	job_price = relationship('job_price', back_populates = 'job', userlist = False)
 	
 	def __repr__(self):
@@ -114,7 +117,6 @@ class ModelInfo(Base):
 	# 血型
 	blood_group = Column(String(8), nullable = True)
 	model_id = Column(Integer, ForeignKey('woman_models.id'))
-	# 连接contact与model_info
 	contact = relationship('contact', back_populates = 'model_info', userlist = False)
 	school = relationship('school', back_populates = 'model_info', userlist = False)
 	
