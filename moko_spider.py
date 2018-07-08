@@ -28,7 +28,6 @@ if __name__ == '__main__':
 		new_html = etree.HTML(new_resp.text)
 		# 动态导入对应模块的spider
 		module = import_module(model_name + "." + "spider")
-		# import Model.spider
 		module.spider(new_html)
 		# logging.debug(db_session)
 	except Exception as e:
