@@ -1,10 +1,16 @@
 import logging
 
-from setting import db_session
+import requests
+from lxml import etree
+
+from setting import db_session, HEADERS_DEFAULT, COOKIES, URL_DEFAULT
 from .models import *
 
 
-def spider(new_html):
+# 首页spider
+def list_spider(url):
+	new_resp = requests.get(url = URL_DEFAULT + url, headers = HEADERS_DEFAULT, cookies = COOKIES)
+	new_html = etree.HTML(new_resp.text)
 	"""
 	1) Xpath模糊查找后用python处理
 		/descendant::* 所有后代元素，等同于//*
@@ -49,11 +55,17 @@ def spider(new_html):
 		# 进一步过滤掉男模
 		elements_filter = [e for e in element_list if '男' not in e['发布人/']['title']]
 	"""
+	
 	elements_nickname = new_html.xpath('//*[@class="post small-post"]//a[@class="nickname"]')
 	elements_job = new_html.xpath(
 			'//*[@class="post small-post"]//label[contains(text(),"职业")]/following::span[1]/text()')
 	p = []
 	model_list = []
+	elements_nickname = [
+		e for e in elements_nickname if '男' not in e.attrib['title']
+		                                and '先生' not in e.attrib['title']
+		                                and '绅士' not in e.attrib['title']
+	]
 	for i, e in enumerate(elements_nickname):
 		if e.attrib['title'] not in p and db_session.query(
 				WomanModels).filter(WomanModels.publisher == e.attrib['title']):
@@ -66,16 +78,35 @@ def spider(new_html):
 					}
 			)
 	if model_list:
-		try:
-			model_list = [
-				WomanModels(
-						model_home = model['href'], publisher = model['publisher'],
-						job = [Job(company = model['job'])]) for model in model_list
-			]
-			db_session.add_all(model_list)
-			db_session.commit()
-		except Exception as error:
-			db_session.rollback()
-			print(error)
+		model_list = [
+			WomanModels(
+					model_home = model['href'], publisher = model['publisher'],
+					job = [Job(company = model['job'])]) for model in model_list
+		]
+		db_session.add_all(model_list)
+	next_url = new_html.xpath('//p[@class="page"]/a[@class="mBC wC"]/following::a[1]/@href')
+	if next_url.startswith('/'):
+		list_spider(next_url)
 	else:
 		return None
+
+
+# model个人页面spider
+def model_post(url):
+	new_resp = requests.get(url = URL_DEFAULT + url, headers = HEADERS_DEFAULT, cookies = COOKIES)
+	new_html = etree.HTML(new_resp.text)
+	publisher = new_html.xpath('//a[@id=workNickName]/text()')
+	w_model = db_session.query(WomanModels).filter(WomanModels.publisher == publisher)
+	show_url = new_html.xpath('//a[@id="a_post"]/@href')
+	info_url = new_html.xpath('//a[@id=a_profile]/@href')
+
+
+# model_show的spider
+def model_show(url):
+	new_resp = requests.get(url = URL_DEFAULT + url, headers = HEADERS_DEFAULT, cookies = COOKIES)
+	new_html = etree.HTML(new_resp.text)
+
+
+# 一切的开始
+def spider(url):
+	list_spider(url)

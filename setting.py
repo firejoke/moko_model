@@ -1,7 +1,7 @@
 """
 使用SQLAlchemy
 """
-import logging
+
 import os
 import re
 from importlib import import_module
@@ -23,7 +23,6 @@ with open(db_config, 'r') as f:
 	charset = re.search(r"CHARSET=(\w.*)?", f, flags = re.I).group()[8:] or 'utf8'
 	DATABASE_DEFAULT = '{}+{}://{}:{}@{}:{}/{}?charset={}'.format(db, drive, user, password, host, port, name, charset)
 
-print(DATABASE_DEFAULT, type(DATABASE_DEFAULT))
 # 创建连接数据库
 engine = create_engine('mysql+pymysql://guest:test_guest@localhost:3306/moko?charset=utf8', echo = True)
 # ORM基类
@@ -65,4 +64,12 @@ HEADERS_DEFAULT = {
 	              'Safari/537.36'
 	}
 
-URL_DEFAULT = 'http://www.moko.cc/channels/post'
+COOKIES = dict(
+		LAST_LOGIN_EMAIL='335856032@qq.com',
+		NEWMOKO_USER_LOGINKEY='0419d041-65c2-4f8d-82a3-ba696270338e',
+		Hm_lvt_8d82e75c6168ba4bc0135a08edae2a2e='1530839622,1530925845,1530941756,1531019852',
+		JSESSIONID='E1666EF3E6CC39F5B4F382F7386CFC72',
+		Hm_lpvt_8d82e75c6168ba4bc0135a08edae2a2e='1531038268'
+)
+
+URL_DEFAULT = 'http://www.moko.cc/'

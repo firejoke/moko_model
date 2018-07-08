@@ -4,7 +4,7 @@
 需要爬哪个数据，就调用哪个模型
 """
 
-from sqlalchemy import Column, Integer, String, Date, Text, ForeignKey, Table
+from sqlalchemy import Column, Integer, String, Date, Text, ForeignKey, Table, DateTime
 from sqlalchemy.orm import relationship
 
 from setting import Base
@@ -19,7 +19,7 @@ model_broker = Table(
 		Column('id', Integer, primary_key = True),
 		Column('models_id', Integer, ForeignKey('woman_models.id')),
 		Column('broker_id', Integer, ForeignKey('user_broker.id'))
-		)
+)
 
 
 # 经纪人
@@ -48,9 +48,20 @@ class WomanModels(Base):
 	user_broker = relationship('UserBroker', secondary = model_broker, back_populates = 'woman_models')
 	# moko账号可以设置最多三个职业
 	job = relationship('Job', back_populates = 'models')
+	show = relationship('ModelShow', lazy = 'dynamic')
 	
 	def __repr__(self):
 		return "< table_name: %s Model_property: %s>" % (self.__tablename__, self.__dict__)
+
+
+# 居然作品没跟工作类关联在一起，moko这个页面真是......
+class ModelShow(Base):
+	id = Column(Integer, primary_key = True, autoincrement = True)
+	href = Column(String(255))
+	create_time = Column(DateTime)
+	title = Column(String(64))
+	hits = Column(Integer)
+	model_id = Column(Integer, ForeignKey('woman_models.id'))
 
 
 class Job(Base):
