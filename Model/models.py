@@ -56,12 +56,16 @@ class WomanModels(Base):
 
 # 居然作品没跟工作类关联在一起，moko这个页面真是......
 class ModelShow(Base):
+	__tablename__ = 'model_show'
 	id = Column(Integer, primary_key = True, autoincrement = True)
 	href = Column(String(255))
 	create_time = Column(DateTime)
 	title = Column(String(64))
 	hits = Column(Integer)
 	model_id = Column(Integer, ForeignKey('woman_models.id'))
+	
+	def __repr__(self):
+		return "< table_name: %s Model_property: %s>" % (self.__tablename__, self.__dict__)
 
 
 class Job(Base):

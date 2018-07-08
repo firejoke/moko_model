@@ -1,4 +1,7 @@
 import logging
+import time
+from multiprocessing import Queue, Process
+from multiprocessing.pool import Pool
 
 import requests
 from lxml import etree
@@ -8,7 +11,7 @@ from .models import *
 
 
 # 首页spider
-def list_spider(url):
+def list_spider(url, q: Queue):
 	new_resp = requests.get(url = URL_DEFAULT + url, headers = HEADERS_DEFAULT, cookies = COOKIES)
 	new_html = etree.HTML(new_resp.text)
 	"""
@@ -84,29 +87,45 @@ def list_spider(url):
 					job = [Job(company = model['job'])]) for model in model_list
 		]
 		db_session.add_all(model_list)
-	next_url = new_html.xpath('//p[@class="page"]/a[@class="mBC wC"]/following::a[1]/@href')
+	next_url = new_html.xpath('//p[@class="page"]/a[@class="mBC wC"]/following::a[1:2]/@href')
 	if next_url.startswith('/'):
-		list_spider(next_url)
+		return next_url
 	else:
 		return None
 
 
-# model个人页面spider
+# model个人信息spider
 def model_post(url):
-	new_resp = requests.get(url = URL_DEFAULT + url, headers = HEADERS_DEFAULT, cookies = COOKIES)
+	new_resp = requests.get(url = URL_DEFAULT + 'profile' + url[:-1] + '.html', headers = HEADERS_DEFAULT,
+			cookies = COOKIES)
 	new_html = etree.HTML(new_resp.text)
 	publisher = new_html.xpath('//a[@id=workNickName]/text()')
-	w_model = db_session.query(WomanModels).filter(WomanModels.publisher == publisher)
-	show_url = new_html.xpath('//a[@id="a_post"]/@href')
-	info_url = new_html.xpath('//a[@id=a_profile]/@href')
+	w_model = db_session.query(WomanModels).filter_by(publisher = publisher)[0]
+	
+	w_model.mode_info = ModelInfo()
 
 
 # model_show的spider
 def model_show(url):
-	new_resp = requests.get(url = URL_DEFAULT + url, headers = HEADERS_DEFAULT, cookies = COOKIES)
+	new_resp = requests.get(url = URL_DEFAULT + 'post' + url + 'new/1.html', headers = HEADERS_DEFAULT,
+			cookies = COOKIES)
 	new_html = etree.HTML(new_resp.text)
 
 
 # 一切的开始
 def spider(url):
-	list_spider(url)
+	list_q = Queue()
+	list_q.put(url)
+	_q = Queue()
+	show_q = Queue()
+	list_p = Pool(processes = 1)
+	while True:
+		# 当首页spider返回值为空的时候就关闭Pool并退出循环
+		res = list_p.apply_async(func = list_spider, args = (list_q,), callback = list_q.put).get()
+		list_p.close()
+		time.sleep(2)
+		if not res:
+			break
+	time.sleep(60)
+	# 等首页spider至少运行一分钟，获得足够多的连接后，再开启其他spider
+	
