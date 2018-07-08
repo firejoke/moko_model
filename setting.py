@@ -49,7 +49,7 @@ def migrate(model_path: str = None):
 	"""
 	try:
 		# 动态导入要映射的模型
-		logging.debug(import_module(model_path + "." + "models" if model_path else "models"))
+		import_module(model_path + "." + "models" if model_path else "models")
 		# 把表创建进内存
 		Base.metadata.create_all()
 		# 把内存里的表写进数据库
@@ -58,6 +58,7 @@ def migrate(model_path: str = None):
 	except (ImportError, TypeError) as e:
 		print(e)
 		db_session.rollback()
+
 
 HEADERS_DEFAULT = {
 	'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.62 '
