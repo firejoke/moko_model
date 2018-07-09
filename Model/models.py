@@ -103,7 +103,8 @@ class JobPrice(Base):
 	__tablename__ = 'job_price'
 	id = Column(Integer, primary_key = True, autoincrement = True)
 	job_name = Column(String(128))
-	price = Column(Integer, nullable = True)
+	price_lower = Column(Integer, nullable = True, index = True)
+	price_up = Column(Integer, nullable = True, index = True)
 	job_id = Column(Integer, ForeignKey('job.id'))
 	
 	def __repr__(self):
@@ -132,7 +133,8 @@ class ModelInfo(Base):
 	# 血型
 	blood_group = Column(String(8), nullable = True)
 	model_id = Column(Integer, ForeignKey('woman_models.id'))
-	hobby = relationship('Hobby', back_populates = 'model_info', lazy = 'dynamic')
+	hobby = relationship('Hobby', uselist = False)
+	contact = relationship('Contact', uselist = False)
 	
 	def __repr__(self):
 		return "< table_name: %s Model_property: %s>" % (self.__tablename__, self.__dict__)
@@ -168,7 +170,6 @@ class Hobby(Base):
 	book = Column(Text, nullable = True)
 	other = Column(Text, nullable = True)
 	model_info_id = Column(Integer, ForeignKey('model_info.id'))
-	model_info = relationship('ModelInfo', back_populates = 'hobby')
 	
 	def __repr__(self):
 		return "< table_name: %s Model_property: %s>" % (self.__tablename__, self.__dict__)
