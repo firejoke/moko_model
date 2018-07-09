@@ -50,6 +50,7 @@ class WomanModels(Base):
 	user_broker = relationship('UserBroker', secondary = model_broker, back_populates = 'woman_models')
 	# moko账号可以设置最多三个职业
 	job = relationship('Job', back_populates = 'models')
+	school = relationship('School', uselist = False)
 	show = relationship('ModelShow', lazy = 'dynamic')
 	
 	def __repr__(self):
@@ -81,9 +82,17 @@ class Job(Base):
 	position = Column(String(32), nullable = True, index = True)
 	# 工作经历
 	experience = Column(Text, nullable = True)
-	woman_models_id = Column(Integer, ForeignKey('woman_models.id'))
+	# 奖项
+	trophies = Column(Text, nullable = True)
+	# 最高奖项
+	top_trophies = Column(Text, nullable = True)
+	# 展览作品描述
+	show_works = Column(Text, nullable = True)
+	# 其他作品描述
+	other_works = Column(Text, nullable = True)
+	models_id = Column(Integer, ForeignKey('woman_models.id'))
 	models = relationship('WomanModels', back_populates = 'job')
-	job_price = relationship('JobPrice', back_populates = 'job', lazy = 'dynamic')
+	job_price = relationship('JobPrice', lazy = 'dynamic')
 	
 	def __repr__(self):
 		return "< table_name: %s Model_property: %s>" % (self.__tablename__, self.__dict__)
@@ -94,9 +103,8 @@ class JobPrice(Base):
 	__tablename__ = 'job_price'
 	id = Column(Integer, primary_key = True, autoincrement = True)
 	job_name = Column(String(128))
-	price = Column(Integer)
+	price = Column(Integer, nullable = True)
 	job_id = Column(Integer, ForeignKey('job.id'))
-	job = relationship('Job', back_populates = 'job_price')
 	
 	def __repr__(self):
 		return "< table_name: %s Model_property: %s>" % (self.__tablename__, self.__dict__)
@@ -123,12 +131,8 @@ class ModelInfo(Base):
 	shoe_size = Column(Integer, nullable = True)
 	# 血型
 	blood_group = Column(String(8), nullable = True)
-	# 奖项
-	trophies = Column(Text)
-	# 最高奖项
-	top_trophies = Column(Text)
 	model_id = Column(Integer, ForeignKey('woman_models.id'))
-	school = relationship('School', back_populates = 'model_info')
+	hobby = relationship('Hobby', back_populates = 'model_info', lazy = 'dynamic')
 	
 	def __repr__(self):
 		return "< table_name: %s Model_property: %s>" % (self.__tablename__, self.__dict__)
@@ -152,12 +156,35 @@ class Contact(Base):
 		return "< table_name: %s Model_property: %s>" % (self.__tablename__, self.__dict__)
 
 
+# 爱好
+class Hobby(Base):
+	__tablename__ = 'hobby'
+	id = Column(Integer, primary_key = True, autoincrement = True)
+	music = Column(Text, nullable = True)
+	star = Column(Text, nullable = True)
+	movies = Column(Text, nullable = True)
+	tv = Column(Text, nullable = True)
+	sport = Column(Text, nullable = True)
+	book = Column(Text, nullable = True)
+	other = Column(Text, nullable = True)
+	model_info_id = Column(Integer, ForeignKey('model_info.id'))
+	model_info = relationship('ModelInfo', back_populates = 'hobby')
+	
+	def __repr__(self):
+		return "< table_name: %s Model_property: %s>" % (self.__tablename__, self.__dict__)
+
+
 class School(Base):
 	__tablename__ = 'school'
 	id = Column(Integer, primary_key = True, autoincrement = True)
 	school_name = Column(String(128), nullable = True)
-	model_info_id = Column(Integer, ForeignKey('model_info.id'))
-	model_info = relationship('ModelInfo', back_populates = 'school')
+	# 毕业年份
+	finish_school = Column(DateTime, nullable = True)
+	# 学历
+	education = Column(String(16), nullable = True)
+	# 院系
+	factions = Column(String(16), nullable = True)
+	model_id = Column(Integer, ForeignKey('woman_models.id'))
 	
 	def __repr__(self):
 		return "< table_name: %s Model_property: %s>" % (self.__tablename__, self.__dict__)

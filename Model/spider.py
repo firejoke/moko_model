@@ -1,4 +1,6 @@
+import datetime
 import logging
+import re
 import time
 from multiprocessing import Queue, Process
 from multiprocessing.pool import Pool
@@ -47,7 +49,8 @@ def list_spider(url, q: Queue):
 					p.append(elements_a_label[i + 1].attrib['title'])
 					element_list.append(
 							{
-								y.text: elements_a_label[i + x + 1].text if not elements_a_label[i + x + 1].attrib else
+								y.text: elements_a_label[i + x + 1].text or None if not elements_a_label[i + x +
+								1].attrib else
 								{
 									'href': elements_a_label[i + x + 1].attrib['href'],
 									'title': elements_a_label[i + x + 1].attrib['title']
@@ -101,61 +104,127 @@ def model_post(url):
 	new_resp = requests.get(url = url, headers = HEADERS_DEFAULT, cookies = COOKIES)
 	new_html = etree.HTML(new_resp.text)
 	publisher = new_html.xpath('//a[@id=workNickName]/text()')
-	w_model = db_session.query(WomanModels).filter_by(publisher = publisher)[0]
+	w_model = db_session.query(WomanModels).filter_by(publisher = publisher)[0].model_info
 	info_list = new_html.xpath('//*[@class="profile-module-box profile-line-module"]//*')
 	job_list = new_html.xpath('//*[@class="profile-module-box"]//*')
-	contact = new_html.xpath('//*[@class="only-firend"]//')
-	job_price = new_html.xpth
+	contact = new_html.xpath('//*[@class="only-firend"]//*')
+	job_price = new_html.xpath('//*[@class="profile-module-box gC"]//li//*/text()')
+	# 能否创建对象的状态码
+	model_or = 0
 	# 防止对方把字段对应的值设成和字段一样
 	try:
 		if info_list:
-			for i, e in enumerate(info_list):
+			model_or += 1
+			for i, e in enumerate(info_list[::2]):
+				# 基础信息
 				if e.text == '出生日期':
-					birthday = info_list[i + 1].text
+					birthday = info_list[2 * i + 1].text or None
 				elif e.text == '星座':
-					constellation = info_list[i + 1].text
+					constellation = info_list[2 * i + 1].text or None
 				elif e.text == '血型':
-					blood_group = info_list[i + 1].text
-				elif e.text == '身高':
-					height = info_list[i + 1].text
-				elif e.text == '体重':
-					weight = info_list[i + 1].text
+					blood_group = info_list[2 * i + 1].text or None
+				elif e.text == '身高(cm)':
+					height = info_list[2 * i + 1].text or None
+				elif e.text == '体重(kg)':
+					weight = info_list[2 * i + 1].text or None
 				elif e.text == '三围(cm)':
-					shape = info_list[i + 1].text
+					shape = info_list[2 * i + 1].text or None
 				elif e.text == '头发颜色':
-					hair_color = info_list[i + 1].text
+					hair_color = info_list[2 * i + 1].text or None
 				elif e.text == '眼睛颜色':
-					eye_color = info_list[i + 1].text
+					eye_color = info_list[2 * i + 1].text or None
 				elif e.text == '鞋码':
-					shoe_size = info_list[i + 1].text
+					shoe_size = info_list[2 * i + 1].text or None
+				# 学校
+				elif e.text == '大学':
+					school = info_list[2 * i + 1].text or None
+				elif e.text == '毕业年份':
+					finish_school = info_list[2 * i + 1].text or None
+				elif e.text == '学历':
+					education = info_list[2 * i + 1].text or None
+				elif e.text == '院系':
+					factions = info_list[2 * i + 1].text or None
+				# 经纪公司
+				elif e.text == '签约公司':
+					company = info_list[2 * i + 1].text or None
+				elif e.text == '经纪人':
+					broker = info_list[2 * i + 1].text or None
+				elif e.text == '手机':
+					broker_phone = info_list[2 * i + 1].text or None
+				elif e.text == 'E-mail':
+					broker_email = info_list[2 * i + 1].text or None
+				# 爱好
+				elif e.text == '喜欢的音乐':
+					music = info_list[2 * i + 1].text or None
+				elif e.text == '喜欢的明星':
+					star = info_list[2 * i + 1].text or None
+				elif e.text == '喜欢的电影':
+					movies = info_list[2 * i + 1].text or None
+				elif e.text == '喜欢的电视':
+					tv = info_list[2 * i + 1].text or None
+				elif e.text == '喜欢的运动':
+					sport = info_list[2 * i + 1].text or None
+				elif e.text == '喜欢的书':
+					book = info_list[2 * i + 1].text or None
+				elif e.text == '其他':
+					other = info_list[2 * i + 1].text or None
 	except IndexError as info_error:
-		print(url + 'info==>有陷阱', '\n', info_error)
+		print(URL_DEFAULT + 'profile/lijiaji.html' + ' info==>有陷阱', '\n', info_error)
 	try:
 		if job_list:
-			for i, e in enumerate(job_list):
+			model_or += 1
+			for i, e in enumerate(job_list[::2]):
 				if e.text == '所在公司':
-					now_company = job_list[i + 1].text
+					now_company = job_list[2 * i + 1].text or None
 				elif e.text == '头衔':
-					title = job_list[i + 1].text
+					title = job_list[2 * i + 1].text or None
 				elif e.text == '经历':
-					experience = job_list[i + 1].text
-				elif e.text == '签约公司':
-					company = job_list[i + 1].text
-				elif e.text == '经纪人':
-					broker = job_list[i + 1].text
-				elif e.text == '手机':
-					broker_phone = job_list[i + 1].text
-				elif e.text == 'E-mail':
-					broker_email = job_list[i + 1].text
-		w_model.mode_info = ModelInfo()
+					experience = job_list[2 * i + 1].text or None
+				# 作品
+				elif e.text == '展览作品':
+					show_works = job_list[2 * i + 1].text or None
+				elif e.text == '其他作品':
+					other_works = job_list[2 * i + 1].text or None
+				# 奖项
+				elif e.text == '最高奖项':
+					top_trophies = job_list[2 * i + 1].text or None
+				elif e.text == '其他奖项':
+					trophies = job_list[2 * i + 1].text or None
 	except IndexError as job_error:
-		print(url + 'job==>有陷阱', '\n', job_error)
+		print(URL_DEFAULT + 'profile/lijiaji.html' + ' job==>有陷阱', '\n', job_error)
+	try:
+		# 因为没找到有联系方式的页面，不知道她页面上会怎么写，所以用的in
+		if contact:
+			model_or += 1
+			for i, e in enumerate(contact[::2]):
+				if '名字' in e.text:
+					m_name = contact[2 * i + 1].text or None
+				elif 'mail' in e.text.lower():
+					email = contact[2 * i + 1].text or None
+				elif '手机' in e.text:
+					phone = contact[2 * i + 1].text or None
+				elif '电话' in e.text:
+					phone_b = contact[2 * i + 1].text or None
+				elif '微信' in e.text:
+					wechat = contact[2 * i + 1].text or None
+				elif 'QQ' in e.text.lower():
+					qq = contact[2 * i + 1].text or None
+	except IndexError as contact_error:
+		print(URL_DEFAULT + 'profile/lijiaji.html' + 'contact==>有陷阱', '\n', contact_error)
+	try:
+		job_price = [re.search(r"\d{3,6},\d{3,6},", e).group() if e.startswith('j') else e for e in job_price]
+		model_or += 1 if job_price else 0
+	except IndexError as price_error:
+		print(URL_DEFAULT + 'profile/lijiaji.html' + ' job_price==>有陷阱', '\n', price_error)
+	# 一切就绪，开始创建模型对象
+	if model_or:
+		w_model.update
 
 
 # model_show的spider
 def model_show(url):
-	new_resp = requests.get(url = URL_DEFAULT + 'post' + url + 'new/1.html', headers = HEADERS_DEFAULT,
-			cookies = COOKIES)
+	url = URL_DEFAULT + 'post' + url + 'new/1.html'
+	new_resp = requests.get(url = url, headers = HEADERS_DEFAULT, cookies = COOKIES)
 	new_html = etree.HTML(new_resp.text)
 
 
