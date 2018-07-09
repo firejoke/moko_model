@@ -26,10 +26,12 @@ model_broker = Table(
 class UserBroker(Base):
 	__tablename__ = 'user_broker'
 	id = Column(Integer, primary_key = True, autoincrement = True)
+	# 签约公司名
 	company = Column(String(128), nullable = True, index = True)
+	# 经纪人名
 	broker = Column(String(16), nullable = True)
 	broker_phone = Column(String(32), nullable = True)
-	email = Column(String(128), nullable = True)
+	broker_email = Column(String(128), nullable = True)
 	woman_models = relationship(
 			'WomanModels', secondary = model_broker, back_populates = 'user_broker', lazy = 'dynamic')
 	
@@ -71,8 +73,11 @@ class ModelShow(Base):
 class Job(Base):
 	__tablename__ = 'job'
 	id = Column(Integer, primary_key = True, autoincrement = True)
-	company = Column(String(128), nullable = True)
-	# 职位
+	# 所在公司，所在公司和签约公司有啥区别......moko这个数据库真是受不了
+	now_company = Column(String(128))
+	# 头衔
+	title = Column(String(64))
+	# 职业
 	position = Column(String(32), nullable = True, index = True)
 	# 工作经历
 	experience = Column(Text, nullable = True)
@@ -118,8 +123,11 @@ class ModelInfo(Base):
 	shoe_size = Column(Integer, nullable = True)
 	# 血型
 	blood_group = Column(String(8), nullable = True)
+	# 奖项
+	trophies = Column(Text)
+	# 最高奖项
+	top_trophies = Column(Text)
 	model_id = Column(Integer, ForeignKey('woman_models.id'))
-	# woman_models = relationship('WomanModels',back_populates = 'models')
 	school = relationship('School', back_populates = 'model_info')
 	
 	def __repr__(self):

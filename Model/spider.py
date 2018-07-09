@@ -84,7 +84,7 @@ def list_spider(url, q: Queue):
 		model_list = [
 			WomanModels(
 					model_home = model['href'], publisher = model['publisher'],
-					job = [Job(company = model['job'])]) for model in model_list
+					job = [Job(position = model['job'])]) for model in model_list
 		]
 		db_session.add_all(model_list)
 	next_url = new_html.xpath('//p[@class="page"]/a[@class="mBC wC"]/following::a[1:2]/@href')
@@ -96,13 +96,60 @@ def list_spider(url, q: Queue):
 
 # model个人信息spider
 def model_post(url):
-	new_resp = requests.get(url = URL_DEFAULT + 'profile' + url[:-1] + '.html', headers = HEADERS_DEFAULT,
-			cookies = COOKIES)
+	# 直接拼的URL，其实应该模仿自然操作，先打开个人首页再进展示和个人信息，偷了个懒～
+	url = URL_DEFAULT + 'profile' + url[:-1] + '.html'
+	new_resp = requests.get(url = url, headers = HEADERS_DEFAULT, cookies = COOKIES)
 	new_html = etree.HTML(new_resp.text)
 	publisher = new_html.xpath('//a[@id=workNickName]/text()')
 	w_model = db_session.query(WomanModels).filter_by(publisher = publisher)[0]
-	
-	w_model.mode_info = ModelInfo()
+	info_list = new_html.xpath('//*[@class="profile-module-box profile-line-module"]//*')
+	job_list = new_html.xpath('//*[@class="profile-module-box"]//*')
+	contact = new_html.xpath('//*[@class="only-firend"]//')
+	job_price = new_html.xpth
+	# 防止对方把字段对应的值设成和字段一样
+	try:
+		if info_list:
+			for i, e in enumerate(info_list):
+				if e.text == '出生日期':
+					birthday = info_list[i + 1].text
+				elif e.text == '星座':
+					constellation = info_list[i + 1].text
+				elif e.text == '血型':
+					blood_group = info_list[i + 1].text
+				elif e.text == '身高':
+					height = info_list[i + 1].text
+				elif e.text == '体重':
+					weight = info_list[i + 1].text
+				elif e.text == '三围(cm)':
+					shape = info_list[i + 1].text
+				elif e.text == '头发颜色':
+					hair_color = info_list[i + 1].text
+				elif e.text == '眼睛颜色':
+					eye_color = info_list[i + 1].text
+				elif e.text == '鞋码':
+					shoe_size = info_list[i + 1].text
+	except IndexError as info_error:
+		print(url + 'info==>有陷阱', '\n', info_error)
+	try:
+		if job_list:
+			for i, e in enumerate(job_list):
+				if e.text == '所在公司':
+					now_company = job_list[i + 1].text
+				elif e.text == '头衔':
+					title = job_list[i + 1].text
+				elif e.text == '经历':
+					experience = job_list[i + 1].text
+				elif e.text == '签约公司':
+					company = job_list[i + 1].text
+				elif e.text == '经纪人':
+					broker = job_list[i + 1].text
+				elif e.text == '手机':
+					broker_phone = job_list[i + 1].text
+				elif e.text == 'E-mail':
+					broker_email = job_list[i + 1].text
+		w_model.mode_info = ModelInfo()
+	except IndexError as job_error:
+		print(url + 'job==>有陷阱', '\n', job_error)
 
 
 # model_show的spider
@@ -116,7 +163,7 @@ def model_show(url):
 def spider(url):
 	list_q = Queue()
 	list_q.put(url)
-	_q = Queue()
+	info_q = Queue()
 	show_q = Queue()
 	list_p = Pool(processes = 1)
 	while True:
@@ -127,5 +174,4 @@ def spider(url):
 		if not res:
 			break
 	time.sleep(60)
-	# 等首页spider至少运行一分钟，获得足够多的连接后，再开启其他spider
-	
+# 等首页spider至少运行一分钟，获得足够多的连接后，再开启其他spider

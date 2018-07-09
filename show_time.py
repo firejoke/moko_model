@@ -6,8 +6,11 @@ import logging
 import requests
 from lxml import etree
 
-from Model.models import WomanModels
-from setting import HEADERS_DEFAULT, COOKIES, db_session
+# from Model.models import WomanModels
+from setting import HEADERS_DEFAULT, COOKIES, db_session, URL_DEFAULT
 
-q = db_session.query(WomanModels).filter_by(publisher = '晓琳少年lin')[0]
-logging.debug(q)
+new_resp = requests.get(url = URL_DEFAULT + 'channels/post/23/10.html', headers = HEADERS_DEFAULT,
+			cookies = COOKIES)
+new_html = etree.HTML(new_resp.text)
+info_list = new_html.xpath('//*[@class="post small-post"]//a/@*')
+logging.debug(info_list)
