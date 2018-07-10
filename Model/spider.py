@@ -240,6 +240,7 @@ def model_post(url):
 		w_model.user_broker = user_broker
 		db_session.bulk_save_objects([w_model, model_info, job])
 		db_session.commit()
+		print('======model_post next url======')
 	except Exception as error:
 		db_session.rollback()
 		print(error)
@@ -254,7 +255,7 @@ def model_show_list(url_id):
 	new_html = etree.HTML(new_resp.text)
 	show_list = new_html.xpath('//a[@class="coverBg wC"]/@href')
 	next_url = new_html.xpath('//p[@class="page"]/a[@class="mBC wC"]/following::a[1]/@href')[0]
-	print(next_url)
+	print('======show_list nex url======',next_url)
 	if next_url.startswith('/'):
 		return next_url, (show_list, url_id[1])
 	else:
@@ -278,6 +279,7 @@ def photo_list(url_id):
 	try:
 		db_session.bulk_save_objects(model_show_list)
 		db_session.commit()
+		print('======photo_list next url======')
 	except Exception as e:
 		db_session.rollback()
 		print(e)
@@ -310,7 +312,8 @@ def spider(url):
 				break
 			time.sleep(2)
 		# 因为首页pages不多，就等它跑完再开其他spider，也就40second，而且也不用担心数据库冲突，偷懒:-)
-		#
+		print('======首页爬完，开始model_info 和 show_list======')
+		time.sleep(10)
 		profile_new_id = 0
 		show_new_id = 0
 		while 1:
