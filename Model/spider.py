@@ -63,9 +63,9 @@ def list_spider(url):
 		elements_filter = [e for e in element_list if '男' not in e['发布人/']['title']]
 	"""
 	
-	elements_nickname = new_html.xpath('//div[@class="post small-post"]//a[@class="nickname"]')
+	elements_nickname = new_html.xpath('//ul[@class="post small-post"]//a[@class="nickname"]')
 	elements_job = new_html.xpath(
-			'//div[@class="post small-post"]//label[contains(text(),"职业")]/following::span[1]/text()')
+			'//ul[@class="post small-post"]//label[contains(text(),"职业")]/following::span[1]/text()')
 	p = []
 	model_list = []
 	elements_nickname = [
@@ -104,20 +104,21 @@ def list_spider(url):
 
 
 def model_post(url):
+	print("===model个人信息spider===", '\n', url)
 	# 直接拼的URL，其实应该模仿自然操作，先打开个人首页再进展示和个人信息，偷了个懒～
 	url = URL_DEFAULT + '/profile' + url[:-1] + '.html'
 	new_resp = requests.get(url = url, headers = HEADERS_DEFAULT, cookies = COOKIES)
 	new_html = etree.HTML(new_resp.text)
-	publisher = new_html.xpath('//a[@id=workNickName]/text()')
+	publisher = new_html.xpath('//a[@id="workNickName"]/text()')[0]
 	w_model = db_session.query(WomanModels).filter_by(publisher = publisher).first()
 	info_list = new_html.xpath('//div[@class="profile-module-box profile-line-module"]//*')
 	job_list = new_html.xpath('//div[@class="profile-module-box"]//*')
 	contact_list = new_html.xpath('//div[@class="only-firend"]//*')
 	job_price_list = new_html.xpath('//div[@class="profile-module-box gC"]//li//*/text()')
-	user_broker = UserBroker()
-	job = w_model.job
+	user_broker = UserBroker(woman_models = [w_model])
+	job = Job(models = w_model)
 	school = School(model_id = w_model.id)
-	model_info = ModelInfo()
+	model_info = ModelInfo(model_id = w_model.id)
 	hobby = Hobby()
 	contact = Contact()
 	# 防止对方把字段对应的值设成和字段一样
@@ -151,7 +152,7 @@ def model_post(url):
 				elif e.text == '大学':
 					school.school_name = info_list[2 * i + 1].text
 				elif e.text == '毕业年份':
-					school.finish_school = info_list[2 * i + 1].text
+					school.finish_school = datetime.date(int(info_list[2 * i + 1].text), 6, 6)
 				elif e.text == '学历':
 					school.education = info_list[2 * i + 1].text
 				elif e.text == '院系':
@@ -233,14 +234,12 @@ def model_post(url):
 		print(URL_DEFAULT + url + ' job_price==>有陷阱', '\n', price_error)
 	# 一切就绪，开始创建模型对象
 	try:
-		model_info.contact = contact
 		model_info.hobby = hobby
+		model_info.contact = contact
 		job.job_price = job_price_list
-		w_model.school = school
-		w_model.user_broker = user_broker
-		db_session.bulk_save_objects([w_model, model_info, job])
+		db_session.bulk_save_objects([model_info, job, school])
 		db_session.commit()
-		print('======model_post next url======')
+		print('======model_post end======')
 	except Exception as error:
 		db_session.rollback()
 		print(error)
@@ -250,14 +249,18 @@ def model_post(url):
 
 
 def model_show_list(url_id):
+	print("===model_show的spider===", '\n', url_id[0], url_id[1])
 	url = URL_DEFAULT + '/post' + url_id[0] + 'new/1.html' if url_id[0].endswith('/') else URL_DEFAULT + url_id[0]
 	new_resp = requests.get(url = url, headers = HEADERS_DEFAULT, cookies = COOKIES)
 	new_html = etree.HTML(new_resp.text)
 	show_list = new_html.xpath('//a[@class="coverBg wC"]/@href')
-	next_url = new_html.xpath('//p[@class="page"]/a[@class="mBC wC"]/following::a[1]/@href')[0]
-	print('======show_list nex url======',next_url)
-	if next_url.startswith('/'):
-		return next_url, (show_list, url_id[1])
+	next_url = new_html.xpath('//p[@class="page"]/a[@class="mBC wC"]/following::a[1]/@href')
+	if next_url:
+		print('======show_list nex url======', next_url)
+		if next_url[0].startswith('/'):
+			return next_url, (show_list, url_id[1])
+		else:
+			return None, (show_list, url_id[1])
 	else:
 		return None, (show_list, url_id[1])
 
@@ -266,11 +269,12 @@ def model_show_list(url_id):
 
 
 def photo_list(url_id):
+	print("===子相册的图片spider===", '\n', url_id)
 	url = URL_DEFAULT + url_id[0]
 	new_resp = requests.get(url = url, headers = HEADERS_DEFAULT, cookies = COOKIES)
 	new_html = etree.HTML(new_resp.text)
 	photo_list = new_html.xpath('//p[@class="picBox"]//img/@src2')
-	hits = new_html.xpath('//a[@class="sPoint gC"]/text()')[0]
+	hits = int(new_html.xpath('//a[@class="sPoint gC"]/text()')[0][1:-1])
 	create_time = new_html.xpath('//p[@class="date gC1"]/text()')[0]
 	title = new_html.xpath('//h2[@class="text dBd_1"]/a/text()')[0]
 	model_show_list = [
@@ -279,7 +283,7 @@ def photo_list(url_id):
 	try:
 		db_session.bulk_save_objects(model_show_list)
 		db_session.commit()
-		print('======photo_list next url======')
+		print('======photo_list end======')
 	except Exception as e:
 		db_session.rollback()
 		print(e)
@@ -305,38 +309,39 @@ def spider(url):
 	photo_q = Queue()
 	photo_p = Pool(processes = 2)
 	try:
-		while 1:
-			url = list_spider(url)
-			if not url:
-				print('Finish')
-				break
-			time.sleep(2)
+		# while 1:
+		# 	url = list_spider(url)
+		# 	if not url:
+		# 		print('Finish')
+		# 		break
+		# 	time.sleep(2)
+		# time.sleep(10)
 		# 因为首页pages不多，就等它跑完再开其他spider，也就40second，而且也不用担心数据库冲突，偷懒:-)
 		print('======首页爬完，开始model_info 和 show_list======')
-		time.sleep(10)
 		profile_new_id = 0
 		show_new_id = 0
 		while 1:
 			model_post_url_list = []
 			model_show_url_list = []
-			if profile_q.empty() or show_q.empty():
+			if not profile_q.empty() or not show_q.empty():
 				if not profile_q.empty():
 					time.sleep(2)
 					profile_p.apply(model_post, profile_q.get())
 				
 				if not show_q.empty():
 					time.sleep(2)
-					res = show_p.apply(model_show_list, args = (show_q.get(),)).get()
+					res = show_p.apply(model_show_list, args = (show_q.get(),))
 					if res[0]:
 						show_q.put(res[0])
-					[photo_q.put(photo_url) for photo_url in res[1]]
+					[photo_q.put((photo_url, res[1][1])) for photo_url in res[1][0]]
 				if not photo_q.empty():
 					time.sleep(2)
 					photo_p.apply_async(func = photo_list, args = (photo_q.get(),))
 			else:
 				if profile_q.empty():
-					model_post_url_list = db_session.query(WomanModels.model_home).filter(
-							and_(WomanModels.id > profile_new_id, WomanModels.id <= profile_new_id + 10))
+					model_post_url_list = db_session.query(WomanModels.model_home) \
+						.filter(WomanModels.id.in_(range(profile_new_id, profile_new_id + 10)))
+					model_post_url_list = list(model_post_url_list)
 					if model_post_url_list:
 						[profile_q.put(post_url) for post_url in model_post_url_list]
 						profile_new_id += 10
@@ -347,8 +352,9 @@ def spider(url):
 				if show_q.empty():
 					# 有重复代码，但因为show页面可能有好几页，如果和profile用同一个Queue，
 					# 当它把这几个页面爬完的时候，可能profile已经从Queue取走好几个URL，充满了不确定性
-					model_show_url_list = db_session.query(WomanModels.model_home, WomanModels.id).filter(
-							and_(WomanModels.id > show_new_id, WomanModels.id <= show_new_id + 10))
+					model_show_url_list = db_session.query(WomanModels.model_home, WomanModels.id) \
+						.filter(WomanModels.id.in_(range(show_new_id, show_new_id + 10)))
+					model_show_url_list = list(model_show_url_list)
 					if model_show_url_list:
 						[show_q.put(show_url_and_id) for show_url_and_id in model_show_url_list]
 						show_new_id += 10

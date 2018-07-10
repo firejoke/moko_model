@@ -16,7 +16,6 @@ model列表页没有经纪人信息，
 """
 model_broker = Table(
 		'UserBroker_WomanModels_Relation', Base.metadata,
-		Column('id', Integer, primary_key = True),
 		Column('models_id', Integer, ForeignKey('woman_models.id')),
 		Column('broker_id', Integer, ForeignKey('user_broker.id'))
 )
@@ -180,7 +179,7 @@ class School(Base):
 	id = Column(Integer, primary_key = True, autoincrement = True)
 	school_name = Column(String(128), nullable = True)
 	# 毕业年份
-	finish_school = Column(DateTime, nullable = True)
+	finish_school = Column(Date, nullable = True)
 	# 学历
 	education = Column(String(16), nullable = True)
 	# 院系
