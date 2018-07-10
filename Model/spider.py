@@ -107,6 +107,7 @@ def model_post(url):
 	print("===model个人信息spider===", '\n', url)
 	# 直接拼的URL，其实应该模仿自然操作，先打开个人首页再进展示和个人信息，偷了个懒～
 	url = URL_DEFAULT + '/profile' + url[:-1] + '.html'
+	time.sleep(2)
 	new_resp = requests.get(url = url, headers = HEADERS_DEFAULT, cookies = COOKIES)
 	new_html = etree.HTML(new_resp.text)
 	publisher = new_html.xpath('//a[@id="workNickName"]/text()')[0]
@@ -251,12 +252,13 @@ def model_post(url):
 def model_show_list(url_id):
 	print("===model_show的spider===", '\n', url_id[0], url_id[1])
 	url = URL_DEFAULT + '/post' + url_id[0] + 'new/1.html' if url_id[0].endswith('/') else URL_DEFAULT + url_id[0]
+	time.sleep(2)
 	new_resp = requests.get(url = url, headers = HEADERS_DEFAULT, cookies = COOKIES)
 	new_html = etree.HTML(new_resp.text)
 	show_list = new_html.xpath('//a[@class="coverBg wC"]/@href')
 	next_url = new_html.xpath('//p[@class="page"]/a[@class="mBC wC"]/following::a[1]/@href')
 	if next_url:
-		print('======show_list nex url======', next_url)
+		print('======show_list nex url======', '\n', next_url)
 		if next_url[0].startswith('/'):
 			return next_url, (show_list, url_id[1])
 		else:
@@ -265,28 +267,32 @@ def model_show_list(url_id):
 		return None, (show_list, url_id[1])
 
 
-"""===子相册的图片spider==="""
+"""===子相册的图片spider===
+
+	SQLAlchemy 多进程同时写，居然写不进去...
+	解决方案都是web server级别的
+	最简单的就是一个进程对应一个表，但这也太不灵活了
+	抠了下脚，干脆用generator存储photos_url，把写表操作放在主进程
+		==>result：Pool.apply_async.get()不能获取generator！！！会报错！！！
+		改列表吧......
+"""
 
 
 def photo_list(url_id):
 	print("===子相册的图片spider===", '\n', url_id)
 	url = URL_DEFAULT + url_id[0]
+	time.sleep(2)
 	new_resp = requests.get(url = url, headers = HEADERS_DEFAULT, cookies = COOKIES)
 	new_html = etree.HTML(new_resp.text)
 	photo_list = new_html.xpath('//p[@class="picBox"]//img/@src2')
 	hits = int(new_html.xpath('//a[@class="sPoint gC"]/text()')[0][1:-1])
 	create_time = new_html.xpath('//p[@class="date gC1"]/text()')[0]
 	title = new_html.xpath('//h2[@class="text dBd_1"]/a/text()')[0]
-	model_show_list = [
-		ModelShow(href = photo_url, create_time = create_time, title = title, hits = hits, model_id = url_id[1])
+	model_photos = [
+		dict(href = photo_url, create_time = create_time, title = title, hits = hits, model_id = url_id[1])
 		for photo_url in photo_list]
-	try:
-		db_session.bulk_save_objects(model_show_list)
-		db_session.commit()
-		print('======photo_list end======')
-	except Exception as e:
-		db_session.rollback()
-		print(e)
+	print('======photo_list end======')
+	return model_photos
 
 
 """===一切的开始==="""
@@ -309,13 +315,13 @@ def spider(url):
 	photo_q = Queue()
 	photo_p = Pool(processes = 2)
 	try:
-		# while 1:
-		# 	url = list_spider(url)
-		# 	if not url:
-		# 		print('Finish')
-		# 		break
-		# 	time.sleep(2)
-		# time.sleep(10)
+		while 1:
+			url = list_spider(url)
+			if not url:
+				print('Finish')
+				break
+			time.sleep(2)
+		time.sleep(10)
 		# 因为首页pages不多，就等它跑完再开其他spider，也就40second，而且也不用担心数据库冲突，偷懒:-)
 		print('======首页爬完，开始model_info 和 show_list======')
 		profile_new_id = 0
@@ -323,55 +329,76 @@ def spider(url):
 		while 1:
 			model_post_url_list = []
 			model_show_url_list = []
-			if not profile_q.empty() or not show_q.empty():
-				if not profile_q.empty():
-					time.sleep(2)
-					profile_p.apply(model_post, profile_q.get())
-				
-				if not show_q.empty():
-					time.sleep(2)
-					res = show_p.apply(model_show_list, args = (show_q.get(),))
-					if res[0]:
-						show_q.put(res[0])
-					[photo_q.put((photo_url, res[1][1])) for photo_url in res[1][0]]
-				if not photo_q.empty():
-					time.sleep(2)
-					photo_p.apply_async(func = photo_list, args = (photo_q.get(),))
-			else:
-				if profile_q.empty():
-					model_post_url_list = db_session.query(WomanModels.model_home) \
-						.filter(WomanModels.id.in_(range(profile_new_id, profile_new_id + 10)))
-					model_post_url_list = list(model_post_url_list)
-					if model_post_url_list:
-						[profile_q.put(post_url) for post_url in model_post_url_list]
-						profile_new_id += 10
-					else:
-						profile_q.close()
-						profile_p.close()
-						profile_p.terminate()
-				if show_q.empty():
-					# 有重复代码，但因为show页面可能有好几页，如果和profile用同一个Queue，
-					# 当它把这几个页面爬完的时候，可能profile已经从Queue取走好几个URL，充满了不确定性
-					model_show_url_list = db_session.query(WomanModels.model_home, WomanModels.id) \
-						.filter(WomanModels.id.in_(range(show_new_id, show_new_id + 10)))
-					model_show_url_list = list(model_show_url_list)
-					if model_show_url_list:
-						[show_q.put(show_url_and_id) for show_url_and_id in model_show_url_list]
-						show_new_id += 10
-					else:
-						show_q.close()
-						show_p.close()
-						show_p.terminate()
+			model_photo_list = []
+			if not profile_q.empty():
+				"""开启info spider"""
+				profile_p.apply(model_post, profile_q.get())
+			if not show_q.empty():
+				"""开启展示pages spider"""
+				res = show_p.apply(model_show_list, args = (show_q.get(),))
+				if res[0]:
+					show_q.put(res[0])
+				"""返回值put进photo spider的Queue里"""
+				[photo_q.put((photo_url, res[1][1])) for photo_url in res[1][0]]
+			if not photo_q.empty():
+				"""开启photo spider"""
+				model_photo_list.append(photo_p.apply_async(func = photo_list, args = (photo_q.get(),)).get())
+			if profile_q.empty():
+				"""拿主表数据put进info spider的食盘"""
+				model_post_url_list = db_session.query(WomanModels.model_home) \
+					.filter(WomanModels.id.in_(range(profile_new_id, profile_new_id + 10)))
+				model_post_url_list = list(model_post_url_list)
+				if model_post_url_list:
+					print('model_post_url_list')
+					[profile_q.put(post_url) for post_url in model_post_url_list]
+					profile_new_id += 10
+				else:
+					print('model_post_url_list empty')
+					profile_q.close()
+					profile_p.close()
+					profile_p.terminate()
+			if show_q.empty():
+				"""
+				有重复代码，但因为show页面可能有好几页，如果和profile用同一个Queue
+				当它把这几个页面爬完的时候，可能profile已经从Queue取走好几个URL，充满了不确定性
+				"""
+				model_show_url_list = db_session.query(WomanModels.model_home, WomanModels.id) \
+					.filter(WomanModels.id.in_(range(show_new_id, show_new_id + 10)))
+				model_show_url_list = list(model_show_url_list)
+				if model_show_url_list:
+					print('model_show_url_list')
+					[show_q.put(show_url_and_id) for show_url_and_id in model_show_url_list]
+					show_new_id += 10
+				else:
+					print('model_show_url_list empty')
+					show_q.close()
+					show_p.close()
+					show_p.terminate()
 				# 如果两个都拿不到URL了就等待子进程结束再退出循环
 				if not model_post_url_list and not model_show_url_list:
-					if photo_q.empty():
-						photo_q.close()
-						photo_p.close()
-						photo_p.terminate()
-						profile_p.join()
-						show_p.join()
-						photo_p.join()
-						break
+					# 等待photo进程结束
+					while 1:
+						if photo_q.empty():
+							break
+						else:
+							photo_p.apply_async(func = photo_list, args = (photo_q.get(),))
+					photo_q.close()
+					photo_p.close()
+					photo_p.terminate()
+					profile_p.join()
+					show_p.join()
+					photo_p.join()
+					break
+		model_photo_list = \
+			[
+				[
+					ModelShow(href = model_photo['href'], create_time = model_photo['create_time'],
+							title = model_photo['title'], hits = model_photo['hits'],
+							model_id = model_photo['model_id'])
+					for model_photo in model_photo_generator
+				] for model_photo_generator in model_photo_list
+			]
+		db_session.bulk_save_objects(model_photo_list)
 	except Exception as e:
 		db_session.rollback()
 		print(e)
