@@ -7,6 +7,7 @@ from multiprocessing.pool import Pool
 
 import requests
 from lxml import etree
+from sqlalchemy import and_
 
 from setting import db_session, HEADERS_DEFAULT, COOKIES, URL_DEFAULT
 from .models import *
@@ -62,9 +63,9 @@ def list_spider(url):
 		elements_filter = [e for e in element_list if '男' not in e['发布人/']['title']]
 	"""
 	
-	elements_nickname = new_html.xpath('//*[@class="post small-post"]//a[@class="nickname"]')
+	elements_nickname = new_html.xpath('//div[@class="post small-post"]//a[@class="nickname"]')
 	elements_job = new_html.xpath(
-			'//*[@class="post small-post"]//label[contains(text(),"职业")]/following::span[1]/text()')
+			'//div[@class="post small-post"]//label[contains(text(),"职业")]/following::span[1]/text()')
 	p = []
 	model_list = []
 	elements_nickname = [
@@ -99,7 +100,9 @@ def list_spider(url):
 		return None
 
 
-# model个人信息spider
+"""===model个人信息spider==="""
+
+
 def model_post(url):
 	# 直接拼的URL，其实应该模仿自然操作，先打开个人首页再进展示和个人信息，偷了个懒～
 	url = URL_DEFAULT + '/profile' + url[:-1] + '.html'
@@ -107,10 +110,10 @@ def model_post(url):
 	new_html = etree.HTML(new_resp.text)
 	publisher = new_html.xpath('//a[@id=workNickName]/text()')
 	w_model = db_session.query(WomanModels).filter_by(publisher = publisher).first()
-	info_list = new_html.xpath('//*[@class="profile-module-box profile-line-module"]//*')
-	job_list = new_html.xpath('//*[@class="profile-module-box"]//*')
-	contact_list = new_html.xpath('//*[@class="only-firend"]//*')
-	job_price_list = new_html.xpath('//*[@class="profile-module-box gC"]//li//*/text()')
+	info_list = new_html.xpath('//div[@class="profile-module-box profile-line-module"]//*')
+	job_list = new_html.xpath('//div[@class="profile-module-box"]//*')
+	contact_list = new_html.xpath('//div[@class="only-firend"]//*')
+	job_price_list = new_html.xpath('//div[@class="profile-module-box gC"]//li//*/text()')
 	user_broker = UserBroker()
 	job = w_model.job
 	school = School(model_id = w_model.id)
@@ -178,7 +181,7 @@ def model_post(url):
 				elif e.text == '其他':
 					hobby.other = info_list[2 * i + 1].text
 	except IndexError as info_error:
-		print(URL_DEFAULT + 'profile/lijiaji.html' + ' info==>有陷阱', '\n', info_error)
+		print(URL_DEFAULT + url + ' info==>有陷阱', '\n', info_error)
 	try:
 		if job_list:
 			for i, e in enumerate(job_list[::2]):
@@ -217,7 +220,7 @@ def model_post(url):
 				elif 'QQ' in e.text.lower():
 					contact.qq = contact_list[2 * i + 1].text
 	except IndexError as contact_error:
-		print(URL_DEFAULT + 'profile/lijiaji.html' + 'contact==>有陷阱', '\n', contact_error)
+		print(URL_DEFAULT + url + 'contact==>有陷阱', '\n', contact_error)
 	try:
 		job_price_list = [re.search(r"\d{3,6},\d{3,6},", e).group().split(',') if e.startswith('j') else e for e in
 			job_price_list]
@@ -227,7 +230,7 @@ def model_post(url):
 			enumerate(job_price_list[::2])
 		]
 	except IndexError as price_error:
-		print(URL_DEFAULT + 'profile/lijiaji.html' + ' job_price==>有陷阱', '\n', price_error)
+		print(URL_DEFAULT + url + ' job_price==>有陷阱', '\n', price_error)
 	# 一切就绪，开始创建模型对象
 	try:
 		model_info.contact = contact
@@ -235,31 +238,70 @@ def model_post(url):
 		job.job_price = job_price_list
 		w_model.school = school
 		w_model.user_broker = user_broker
-		db_session.add_all([w_model, model_info, job])
+		db_session.bulk_save_objects([w_model, model_info, job])
 		db_session.commit()
 	except Exception as error:
 		db_session.rollback()
 		print(error)
 
 
-# model_show的spider
-def model_show_list(url):
-	url = URL_DEFAULT + '/post' + url + 'new/1.html'
+"""===model_show的spider==="""
+
+
+def model_show_list(url_id):
+	url = URL_DEFAULT + '/post' + url_id[0] + 'new/1.html' if url_id[0].endswith('/') else URL_DEFAULT + url_id[0]
 	new_resp = requests.get(url = url, headers = HEADERS_DEFAULT, cookies = COOKIES)
 	new_html = etree.HTML(new_resp.text)
-	show_list = new_html.xpath('//*[@class="coverBg wC"]/@href')
+	show_list = new_html.xpath('//a[@class="coverBg wC"]/@href')
 	next_url = new_html.xpath('//p[@class="page"]/a[@class="mBC wC"]/following::a[1]/@href')[0]
 	print(next_url)
 	if next_url.startswith('/'):
-		return next_url, show_list
+		return next_url, (show_list, url_id[1])
 	else:
-		return None
+		return None, (show_list, url_id[1])
 
 
-# 一切的开始
+"""===子相册的图片spider==="""
+
+
+def photo_list(url_id):
+	url = URL_DEFAULT + url_id[0]
+	new_resp = requests.get(url = url, headers = HEADERS_DEFAULT, cookies = COOKIES)
+	new_html = etree.HTML(new_resp.text)
+	photo_list = new_html.xpath('//p[@class="picBox"]//img/@src2')
+	hits = new_html.xpath('//a[@class="sPoint gC"]/text()')[0]
+	create_time = new_html.xpath('//p[@class="date gC1"]/text()')[0]
+	title = new_html.xpath('//h2[@class="text dBd_1"]/a/text()')[0]
+	model_show_list = [
+		ModelShow(href = photo_url, create_time = create_time, title = title, hits = hits, model_id = url_id[1])
+		for photo_url in photo_list]
+	try:
+		db_session.bulk_save_objects(model_show_list)
+		db_session.commit()
+	except Exception as e:
+		db_session.rollback()
+		print(e)
+
+
+"""===一切的开始==="""
+
+
 def spider(url):
+	"""
+	4核cpu
+	勉强把四个需求都实现了......
+	先爬model首页pages获得所有的model个人页面的链接
+	==> 等待有足够多的数据后，开始同时爬取信息页面和展示页面
+		model_post==> 获取信息页面所需的信息，保存到对应的model的model_info表
+		model_show_list==> 获取展示页面的所有子相册链接
+			photo_list==> 获取每一个子相册内的图片链接
+	"""
+	profile_q = Queue()
+	profile_p = Pool(processes = 1)
 	show_q = Queue()
-	photo_p = Pool(processes = 1)
+	show_p = Pool(processes = 1)
+	photo_q = Queue()
+	photo_p = Pool(processes = 2)
 	try:
 		while 1:
 			url = list_spider(url)
@@ -268,7 +310,59 @@ def spider(url):
 				break
 			time.sleep(2)
 		# 因为首页pages不多，就等它跑完再开其他spider，也就40second，而且也不用担心数据库冲突，偷懒:-)
-		show_url = db_session.query(WomanModels).filter_by(id = 1)
+		#
+		profile_new_id = 0
+		show_new_id = 0
+		while 1:
+			model_post_url_list = []
+			model_show_url_list = []
+			if profile_q.empty() or show_q.empty():
+				if not profile_q.empty():
+					time.sleep(2)
+					profile_p.apply(model_post, profile_q.get())
+				
+				if not show_q.empty():
+					time.sleep(2)
+					res = show_p.apply(model_show_list, args = (show_q.get(),)).get()
+					if res[0]:
+						show_q.put(res[0])
+					[photo_q.put(photo_url) for photo_url in res[1]]
+				if not photo_q.empty():
+					time.sleep(2)
+					photo_p.apply_async(func = photo_list, args = (photo_q.get(),))
+			else:
+				if profile_q.empty():
+					model_post_url_list = db_session.query(WomanModels.model_home).filter(
+							and_(WomanModels.id > profile_new_id, WomanModels.id <= profile_new_id + 10))
+					if model_post_url_list:
+						[profile_q.put(post_url) for post_url in model_post_url_list]
+						profile_new_id += 10
+					else:
+						profile_q.close()
+						profile_p.close()
+						profile_p.terminate()
+				if show_q.empty():
+					# 有重复代码，但因为show页面可能有好几页，如果和profile用同一个Queue，
+					# 当它把这几个页面爬完的时候，可能profile已经从Queue取走好几个URL，充满了不确定性
+					model_show_url_list = db_session.query(WomanModels.model_home, WomanModels.id).filter(
+							and_(WomanModels.id > show_new_id, WomanModels.id <= show_new_id + 10))
+					if model_show_url_list:
+						[show_q.put(show_url_and_id) for show_url_and_id in model_show_url_list]
+						show_new_id += 10
+					else:
+						show_q.close()
+						show_p.close()
+						show_p.terminate()
+				# 如果两个都拿不到URL了就等待子进程结束再退出循环
+				if not model_post_url_list and not model_show_url_list:
+					if photo_q.empty():
+						photo_q.close()
+						photo_p.close()
+						photo_p.terminate()
+						profile_p.join()
+						show_p.join()
+						photo_p.join()
+						break
 	except Exception as e:
 		db_session.rollback()
 		print(e)
