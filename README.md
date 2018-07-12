@@ -1,5 +1,5 @@
 # moko_model
-一个分布式小爬虫
+一个并行式小爬虫
 sql:
     SQLAlchemy
 request:
