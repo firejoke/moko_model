@@ -104,7 +104,7 @@ def list_spider(url):
 
 
 def model_post(url):
-	print("===model个人信息spider===", '\n', url)
+	print(url)
 	# 直接拼的URL，其实应该模仿自然操作，先打开个人首页再进展示和个人信息，偷了个懒～
 	url = URL_DEFAULT + '/profile' + url[:-1] + '.html'
 	time.sleep(2)
@@ -285,7 +285,7 @@ def model_post(url):
 
 
 def model_show_list(url_id):
-	print("===model_show的spider===", '\n', url_id[0], url_id[1])
+	print(url_id[0], url_id[1])
 	url = URL_DEFAULT + '/post' + url_id[0] + 'new/1.html' if url_id[0].endswith('/') else URL_DEFAULT + url_id[0]
 	time.sleep(2)
 	new_resp = requests.get(url = url, headers = HEADERS_DEFAULT, cookies = COOKIES)
@@ -314,7 +314,7 @@ def model_show_list(url_id):
 
 
 def photo_list(url_id):
-	print("===子相册的图片spider===", '\n', url_id)
+	print(url_id)
 	url = URL_DEFAULT + url_id[0]
 	time.sleep(2)
 	new_resp = requests.get(url = url, headers = HEADERS_DEFAULT, cookies = COOKIES)
@@ -385,6 +385,7 @@ def spider(url):
 						profile_p_live = 0
 				else:
 					"""开启info spider"""
+					print("===model个人信息spider===", '\n')
 					profile_p.apply(model_post, profile_q.get())
 			# 当show_p 进程池任务没完结的时候
 			if show_p_live:
@@ -408,6 +409,7 @@ def spider(url):
 						show_p_live = 0
 				else:
 					"""开启show pages spider"""
+					print("===model_show的spider===", '\n')
 					res = show_p.apply(model_show_list, args = (show_q.get(),))
 					if res[0]:
 						show_q.put(res[0])
@@ -415,9 +417,11 @@ def spider(url):
 					[photo_q.put((photo_url, res[1][1])) for photo_url in res[1][0]]
 			if not photo_q.empty():
 				"""开启photo spider"""
+				print("===子相册的图片spider===", '\n')
 				model_photo_list.append(photo_p.apply_async(func = photo_list, args = (photo_q.get(),)).get())
 			# 同时开两个，加快速度
 			if not photo_q.empty():
+				print("===子相册的图片spider===", '\n')
 				model_photo_list.append(photo_p.apply_async(func = photo_list, args = (photo_q.get(),)).get())
 			# 当profile_p 和 show_p 的任务都完结了的时候，
 			if not profile_p_live and not show_p_live and photo_q.empty():
