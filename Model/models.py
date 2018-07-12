@@ -57,7 +57,9 @@ class WomanModels(Base):
 	model_info = relationship('ModelInfo', uselist = False)
 	user_broker = relationship('UserBroker', secondary = model_broker, back_populates = 'woman_models')
 	# moko账号可以设置最多三个职业
-	job = relationship('Job', back_populates = 'models')
+	# 可是三个职业并没有分配三个类的职业作品展示...所有展示都是一个页面
+	# 也许它数据库是分了的，但是没有做分类页面，就不好匹配了（必须要把相册名和相关职业做模糊匹配......）
+	job = relationship('Job', uselist = False)
 	school = relationship('School', uselist = False)
 	# 如果是单纯的one to many 关系，并不需要 many query one，那就不要设置back_populates属性（我理解为是回调）
 	show = relationship('ModelShow', lazy = 'dynamic')
@@ -90,6 +92,10 @@ class Job(Base):
 	title = Column(String(64))
 	# 职业
 	position = Column(String(32), nullable = True, index = True)
+	# 第二职业
+	psoition_second = Column(String(32), nullable = True, index = True)
+	# 第三职业
+	psoition_third = Column(String(32), nullable = True, index = True)
 	# 工作经历
 	experience = Column(Text, nullable = True)
 	# 奖项
@@ -101,7 +107,6 @@ class Job(Base):
 	# 其他作品描述
 	other_works = Column(Text, nullable = True)
 	models_id = Column(Integer, ForeignKey('woman_models.id'))
-	models = relationship('WomanModels', back_populates = 'job')
 	job_price = relationship('JobPrice', lazy = 'dynamic')
 	
 	def __repr__(self):

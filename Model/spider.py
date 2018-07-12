@@ -88,7 +88,7 @@ def list_spider(url):
 		model_list = [
 			WomanModels(
 					model_home = model['href'], publisher = model['publisher'],
-					job = [Job(position = model['job'])]) for model in model_list
+					job = Job(position = model['job'])) for model in model_list
 		]
 		db_session.add_all(model_list)
 		db_session.commit()
@@ -111,14 +111,19 @@ def model_post(url):
 	new_resp = requests.get(url = url, headers = HEADERS_DEFAULT, cookies = COOKIES)
 	new_html = etree.HTML(new_resp.text)
 	publisher = new_html.xpath('//a[@id="workNickName"]/text()')[0]
+	position_list = new_html.xpath('//*[@class="b gC"]/text()')
 	w_model = db_session.query(WomanModels).filter_by(publisher = publisher).first()
 	info_list = new_html.xpath('//div[@class="profile-module-box profile-line-module"]//*')
 	job_list = new_html.xpath('//div[@class="profile-module-box"]//*')
 	contact_list = new_html.xpath('//div[@class="only-firend"]//*')
 	job_price_list = new_html.xpath('//div[@class="profile-module-box gC"]//li//*/text()')
-	user_broker = UserBroker(woman_models = [w_model])
+	user_broker = UserBroker()
 	user_broker_stats = 0
-	job = Job(models = w_model)
+	job = w_model.job
+	if len(position_list) >= 2:
+		job.psoition_second = position_list[1]
+		if position_list[2:]:
+			job.psoition_third = position_list[2]
 	school = School(model_id = w_model.id)
 	# 因为school信息和个人信息以及爱好之类的混在一起，所以设置一个状态码
 	# 如果没有学校信息就不保存空的School对象
