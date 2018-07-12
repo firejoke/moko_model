@@ -10,10 +10,9 @@ import requests
 from lxml import etree
 
 # from Model.models import WomanModels
-from setting import HEADERS_DEFAULT, COOKIES, db_session, URL_DEFAULT, migrate
+from setting import HEADERS_DEFAULT, COOKIES, db_session, URL_DEFAULT
 
-# model_show_url_list = db_session.query(WomanModels.model_home, WomanModels.id) \
-# 						.filter(WomanModels.id.in_(range(0,10)))
-# model_show_url_list = list(model_show_url_list)
-# logging.debug(model_show_url_list)
-migrate('Model')
+new_resp = requests.get(url = 'http://www.moko.cc/profile/lijiaji.html', headers = HEADERS_DEFAULT)
+new_html = etree.HTML(new_resp.text)
+info_list = new_html.xpath('//div[@class="profile-module-box profile-line-module"]//*')
+logging.debug(info_list)

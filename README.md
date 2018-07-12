@@ -35,3 +35,6 @@ request:
   352是woman_models table最后一个id
   应该是跟关闭进程池有关
   spider逻辑已经证明没问题了
+
+
+  检查了一下数据库，还是有脏数据，给info spider的保存流程加几个状态码判断

@@ -117,10 +117,16 @@ def model_post(url):
 	contact_list = new_html.xpath('//div[@class="only-firend"]//*')
 	job_price_list = new_html.xpath('//div[@class="profile-module-box gC"]//li//*/text()')
 	user_broker = UserBroker(woman_models = [w_model])
+	user_broker_stats = 0
 	job = Job(models = w_model)
 	school = School(model_id = w_model.id)
+	# 因为school信息和个人信息以及爱好之类的混在一起，所以设置一个状态码
+	# 如果没有学校信息就不保存空的School对象
+	school_stats = 0
 	model_info = ModelInfo(model_id = w_model.id)
 	hobby = Hobby()
+	# 同上理
+	hobby_stats = 0
 	contact = Contact()
 	# 防止对方把字段对应的值设成和字段一样
 	try:
@@ -152,37 +158,53 @@ def model_post(url):
 				# 学校
 				elif e.text == '大学':
 					school.school_name = info_list[2 * i + 1].text
+					school_stats += 1
 				elif e.text == '毕业年份':
 					school.finish_school = datetime.date(int(info_list[2 * i + 1].text), 6, 6)
+					school_stats += 1
 				elif e.text == '学历':
 					school.education = info_list[2 * i + 1].text
+					school_stats += 1
 				elif e.text == '院系':
 					school.factions = info_list[2 * i + 1].text
+					school_stats += 1
 				# 经纪公司
 				elif e.text == '签约公司':
 					user_broker.company = info_list[2 * i + 1].text
+					user_broker_stats += 1
 				elif e.text == '经纪人':
 					user_broker.broker = info_list[2 * i + 1].text
+					user_broker_stats += 1
 				elif e.text == '手机':
 					user_broker.broker_phone = info_list[2 * i + 1].text
+					user_broker_stats += 1
 				elif e.text == 'E-mail':
 					user_broker.broker_email = info_list[2 * i + 1].text
+					user_broker_stats += 1
 				# 爱好
 				elif e.text == '喜欢的音乐':
 					hobby.music = info_list[2 * i + 1].text
+					hobby_stats += 1
 				elif e.text == '喜欢的明星':
 					hobby.star = info_list[2 * i + 1].text
+					hobby_stats += 1
 				elif e.text == '喜欢的电影':
 					hobby.movies = info_list[2 * i + 1].text
+					hobby_stats += 1
 				elif e.text == '喜欢的电视':
 					hobby.tv = info_list[2 * i + 1].text
+					hobby_stats += 1
 				elif e.text == '喜欢的运动':
 					hobby.sport = info_list[2 * i + 1].text
+					hobby_stats += 1
 				elif e.text == '喜欢的书':
 					hobby.book = info_list[2 * i + 1].text
+					hobby_stats += 1
 				elif e.text == '其他':
 					hobby.other = info_list[2 * i + 1].text
+					hobby_stats += 1
 	except IndexError as info_error:
+		model_info = 0
 		print(URL_DEFAULT + url + ' info==>有陷阱', '\n', info_error)
 	try:
 		if job_list:
@@ -204,6 +226,7 @@ def model_post(url):
 				elif e.text == '其他奖项':
 					job.trophies = job_list[2 * i + 1].text
 	except IndexError as job_error:
+		job = 0
 		print(URL_DEFAULT + 'profile/lijiaji.html' + ' job==>有陷阱', '\n', job_error)
 	try:
 		# 因为没找到有联系方式的页面，不知道她页面上会怎么写，所以用的in
@@ -222,6 +245,7 @@ def model_post(url):
 				elif 'QQ' in e.text.lower():
 					contact.qq = contact_list[2 * i + 1].text
 	except IndexError as contact_error:
+		contact = 0
 		print(URL_DEFAULT + url + 'contact==>有陷阱', '\n', contact_error)
 	try:
 		job_price_list = [re.search(r"\d{3,6},\d{3,6},", e).group().split(',') if e.startswith('j') else e for e in
@@ -232,13 +256,24 @@ def model_post(url):
 			enumerate(job_price_list[::2])
 		]
 	except IndexError as price_error:
+		job_price_list = 0
 		print(URL_DEFAULT + url + ' job_price==>有陷阱', '\n', price_error)
 	# 一切就绪，开始创建模型对象
 	try:
-		model_info.hobby = hobby
-		model_info.contact = contact
-		job.job_price = job_price_list
-		db_session.bulk_save_objects([model_info, job, school])
+		if model_info:
+			if hobby_stats:
+				model_info.hobby = hobby
+			if contact:
+				model_info.contact = contact
+			db_session.add(model_info)
+		if job:
+			if job_price_list:
+				job.job_price = job_price_list
+			db_session.add(job)
+		if school_stats:
+			db_session.add(school)
+		if user_broker_stats:
+			db_session.add(user_broker)
 		db_session.commit()
 		print('======model_post end======')
 	except Exception as error:
@@ -331,50 +366,61 @@ def spider(url):
 		show_new_id = 0
 		model_photo_list = []
 		while 1:
-			if not profile_q.empty():
-				"""开启info spider"""
-				profile_p.apply(model_post, profile_q.get())
-			if not show_q.empty():
-				res = show_p.apply(model_show_list, args = (show_q.get(),))
-				if res[0]:
-					show_q.put(res[0])
-				[photo_q.put((photo_url, res[1][1])) for photo_url in res[1][0]]
+			# 当profile_p 进程池任务没完结的时候
+			if profile_p_live:
+				if profile_q.empty():
+					"""拿主表数据put进info spider的食盘"""
+					print('profile query sql')
+					model_post_url_list = db_session.query(WomanModels.model_home) \
+						.filter(WomanModels.id.in_(range(profile_new_id, profile_new_id + 10)))
+					model_post_url_list = list(model_post_url_list)
+					print('profile query sql end')
+					if model_post_url_list:
+						[profile_q.put(post_url) for post_url in model_post_url_list]
+						profile_new_id += 10
+					else:
+						profile_q.close()
+						profile_p.close()
+						profile_p.terminate()
+						profile_p_live = 0
+				else:
+					"""开启info spider"""
+					profile_p.apply(model_post, profile_q.get())
+			# 当show_p 进程池任务没完结的时候
+			if show_p_live:
+				if show_q.empty():
+					"""
+					有重复代码，但因为show页面可能有好几页，如果和profile用同一个Queue
+					当它把这几个页面爬完的时候，可能profile已经从Queue取走好几个URL，充满了不确定性
+					"""
+					print('show query sql')
+					model_show_url_list = db_session.query(WomanModels.model_home, WomanModels.id) \
+						.filter(WomanModels.id.in_(range(show_new_id, show_new_id + 10)))
+					model_show_url_list = list(model_show_url_list)
+					print('show query sql end')
+					if model_show_url_list:
+						[show_q.put(show_url_and_id) for show_url_and_id in model_show_url_list]
+						show_new_id += 10
+					else:
+						show_q.close()
+						show_p.close()
+						show_p.terminate()
+						show_p_live = 0
+				else:
+					"""开启show pages spider"""
+					res = show_p.apply(model_show_list, args = (show_q.get(),))
+					if res[0]:
+						show_q.put(res[0])
+					# 把子相册URL put进photo spider 的食盘里
+					[photo_q.put((photo_url, res[1][1])) for photo_url in res[1][0]]
 			if not photo_q.empty():
+				"""开启photo spider"""
 				model_photo_list.append(photo_p.apply_async(func = photo_list, args = (photo_q.get(),)).get())
 			# 同时开两个，加快速度
 			if not photo_q.empty():
 				model_photo_list.append(photo_p.apply_async(func = photo_list, args = (photo_q.get(),)).get())
-			if profile_q.empty() and profile_p_live:
-				"""拿主表数据put进info spider的食盘"""
-				model_post_url_list = db_session.query(WomanModels.model_home) \
-					.filter(WomanModels.id.in_(range(profile_new_id, profile_new_id + 10)))
-				model_post_url_list = list(model_post_url_list)
-				if model_post_url_list:
-					[profile_q.put(post_url) for post_url in model_post_url_list]
-					profile_new_id += 10
-				else:
-					profile_q.close()
-					profile_p.close()
-					profile_p.terminate()
-					profile_p_live = 0
-			if show_q.empty() and show_p_live:
-				"""
-				有重复代码，但因为show页面可能有好几页，如果和profile用同一个Queue
-				当它把这几个页面爬完的时候，可能profile已经从Queue取走好几个URL，充满了不确定性
-				"""
-				model_show_url_list = db_session.query(WomanModels.model_home, WomanModels.id) \
-					.filter(WomanModels.id.in_(range(show_new_id, show_new_id + 10)))
-				model_show_url_list = list(model_show_url_list)
-				if model_show_url_list:
-					[show_q.put(show_url_and_id) for show_url_and_id in model_show_url_list]
-					show_new_id += 10
-				else:
-					show_q.close()
-					show_p.close()
-					show_p.terminate()
-					show_p_live = 0
-			# 如果两个都拿不到URL了就等待子进程结束再退出循环
-			if show_q.empty() and profile_q.empty() and photo_q.empty():
+			# 当profile_p 和 show_p 的任务都完结了的时候，
+			if not profile_p_live and not show_p_live and photo_q.empty():
 				# 等待photo进程结束
 				photo_q.close()
 				photo_p.close()
