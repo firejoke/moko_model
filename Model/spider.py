@@ -292,7 +292,7 @@ def model_post(url):
 def model_show_list(url_id):
 	print(url_id[0], url_id[1])
 	url = URL_DEFAULT + '/post' + url_id[0] + 'new/1.html' if url_id[0].endswith('/') else URL_DEFAULT + url_id[0]
-	time.sleep(2)
+	time.sleep(1)
 	new_resp = requests.get(url = url, headers = HEADERS_DEFAULT, cookies = COOKIES)
 	new_html = etree.HTML(new_resp.text)
 	show_list = new_html.xpath('//a[@class="coverBg wC"]/@href')
@@ -328,7 +328,11 @@ def photo_list(url_id):
 	photo_list = new_html.xpath('//p[@class="picBox"]//img/@src2')
 	hits = int(new_html.xpath('//a[@class="sPoint gC"]/text()')[0][1:-1])
 	create_time = new_html.xpath('//p[@class="date gC1"]/text()')[0]
-	title = new_html.xpath('//h2[@class="text dBd_1"]/a/text()')[0]
+	create_time = datetime.datetime.strptime(create_time, "%Y-%m-%d %H:%M:%S")
+	# 坑...居然有的title没有text，直接写在<a>的属性里的...
+	title = new_html.xpath('//h2[@class="text dBd_1"]/a/text()')
+	# 加一个避雷针
+	title = title if title else new_html.xpath('//h2[@class="text dBd_1"]/a/@title')
 	model_photos = [
 		dict(href = photo_url, create_time = create_time, title = title, hits = hits, model_id = url_id[1])
 		for photo_url in photo_list]
@@ -355,6 +359,7 @@ def spider(url):
 	show_p = Pool(processes = 1)
 	photo_q = Queue()
 	photo_p = Pool(processes = 2)
+	photo_url_q = Queue()
 	# 进程池是否终止的状态码
 	show_p_live = 1
 	profile_p_live = 1
@@ -370,7 +375,6 @@ def spider(url):
 		print('======首页爬完，开始model_info 和 show_list======')
 		profile_new_id = 0
 		show_new_id = 0
-		model_photo_list = []
 		while 1:
 			# 当profile_p 进程池任务没完结的时候
 			if profile_p_live:
@@ -420,17 +424,29 @@ def spider(url):
 					if res[0]:
 						show_q.put(res[0])
 					# 把子相册URL put进photo spider 的食盘里
-					[photo_q.put((photo_url, res[1][1])) for photo_url in res[1][0]]
+					[photo_q.put((photo_list_url, res[1][1])) for photo_list_url in res[1][0]]
 			if not photo_q.empty():
 				"""开启photo spider"""
-				print("===子相册的图片spider===", '\n')
-				model_photo_list.append(photo_p.apply_async(func = photo_list, args = (photo_q.get(),)).get())
+				print("===子相册的图片spider first===", '\n')
+				res = photo_p.apply_async(func = photo_list, args = (photo_q.get(),)).get()
+				[photo_url_q.put(photo_url) for photo_url in res]
 			# 同时开两个，加快速度
 			if not photo_q.empty():
-				print("===子相册的图片spider===", '\n')
-				model_photo_list.append(photo_p.apply_async(func = photo_list, args = (photo_q.get(),)).get())
+				print("===子相册的图片spider second===", '\n')
+				res = photo_p.apply_async(func = photo_list, args = (photo_q.get(),)).get()
+				[photo_url_q.put(photo_url) for photo_url in res]
+			if not photo_url_q.empty():
+				q_get = photo_url_q.get()
+				try:
+					db_session.add(
+							ModelShow(href = q_get['href'], create_time = q_get['create_time'],
+									title = q_get['title'], hits = q_get['hits'], model_id = q_get['model_id'])
+					)
+				except Exception as ModelShow_error:
+					db_session.rollback()
+					print(ModelShow_error)
 			# 当profile_p 和 show_p 的任务都完结了的时候，
-			if not profile_p_live and not show_p_live and photo_q.empty():
+			if not profile_p_live and not show_p_live and photo_q.empty() and photo_url_q.empty():
 				# 等待photo进程结束
 				photo_q.close()
 				photo_p.close()
@@ -439,16 +455,6 @@ def spider(url):
 				show_p.join()
 				photo_p.join()
 				break
-		model_photo_list = \
-			[
-				[
-					ModelShow(href = model_photo['href'], create_time = model_photo['create_time'],
-							title = model_photo['title'], hits = model_photo['hits'],
-							model_id = model_photo['model_id'])
-					for model_photo in model_photo_generator
-				] for model_photo_generator in model_photo_list
-			]
-		db_session.bulk_save_objects(model_photo_list)
 	except Exception as e:
 		db_session.rollback()
 		print(e)

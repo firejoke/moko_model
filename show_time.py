@@ -12,8 +12,9 @@ from lxml import etree
 # from Model.models import WomanModels
 from setting import HEADERS_DEFAULT, COOKIES, db_session, URL_DEFAULT
 
-new_resp = requests.get(url = 'http://www.moko.cc/profile/lijiaji.html', headers = HEADERS_DEFAULT)
+new_resp = requests.get(url = 'http://www.moko.cc/post/1217578.html', headers = HEADERS_DEFAULT)
 new_html = etree.HTML(new_resp.text)
-info_list = new_html.xpath('//div[@class="profile-module-box profile-line-module"]//*')
-position_list = new_html.xpath('//*[@class="b gC"]/text()')
-logging.debug(info_list,position_list)
+create_time = new_html.xpath('//p[@class="date gC1"]/text()')[0]
+title = new_html.xpath('//h2[@class="text dBd_1"]/a/text()')
+title = title if title else new_html.xpath('//h2[@class="text dBd_1"]/a/@title')
+logging.debug(create_time,title)
