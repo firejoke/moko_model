@@ -284,8 +284,6 @@ def photo_list(url_id):
 	time.sleep(2)
 	new_resp = requests.get(url = url, headers = HEADERS_DEFAULT, cookies = COOKIES)
 	new_html = etree.HTML(new_resp.text)
-	# 防止页面没加载完毕
-	time.sleep(5)
 	photo_list = new_html.xpath('//p[@class="picBox"]//img/@src2')
 	hits = int(new_html.xpath('//a[@class="sPoint gC"]/text()')[0][1:-1])
 	create_time = new_html.xpath('//p[@class="date gC1"]/text()')[0]
@@ -341,6 +339,9 @@ def spider(url):
 				if res[0]:
 					show_q.put(res[0])
 				[photo_q.put((photo_url, res[1][1])) for photo_url in res[1][0]]
+			if not photo_q.empty():
+				model_photo_list.append(photo_p.apply_async(func = photo_list, args = (photo_q.get(),)).get())
+			# 同时开两个，加快速度
 			if not photo_q.empty():
 				model_photo_list.append(photo_p.apply_async(func = photo_list, args = (photo_q.get(),)).get())
 			if profile_q.empty() and profile_p_live:
