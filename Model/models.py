@@ -13,6 +13,8 @@ from setting import Base
 model列表页没有经纪人信息，
 但经纪人和model应该是对应的关系
 所以设置一个UserBroker与WomanModels的中间表
+这种中间表最好只负责用来存两个关系表的关系
+不要添加其他字段，用对应两个表的外键做联合主键
 """
 model_broker = Table(
 		'UserBroker_WomanModels_Relation', Base.metadata,
@@ -31,6 +33,12 @@ class UserBroker(Base):
 	broker = Column(String(16), nullable = True)
 	broker_phone = Column(String(32), nullable = True)
 	broker_email = Column(String(128), nullable = True)
+	"""
+	给relationship字段添加一个secondary属性，指向中间表
+	另:
+		！！！第一个坑，relationship 的第一个属性是Base模型的名称，并不是对应的table name
+		！！！第二个坑，back_populates 是指向的关联表对应的relationship，并不是Base模型名或者table name
+	"""
 	woman_models = relationship(
 			'WomanModels', secondary = model_broker, back_populates = 'user_broker', lazy = 'dynamic')
 	
@@ -45,11 +53,13 @@ class WomanModels(Base):
 	model_home = Column(String(128))
 	# 发布人
 	publisher = Column(String(64), nullable = True, index = True, unique = True)
+	# 一对一的关系表，要把uselist设置成 False
 	model_info = relationship('ModelInfo', uselist = False)
 	user_broker = relationship('UserBroker', secondary = model_broker, back_populates = 'woman_models')
 	# moko账号可以设置最多三个职业
 	job = relationship('Job', back_populates = 'models')
 	school = relationship('School', uselist = False)
+	# 如果是单纯的one to many 关系，并不需要 many query one，那就不要设置back_populates属性（我理解为是回调）
 	show = relationship('ModelShow', lazy = 'dynamic')
 	
 	def __repr__(self):
@@ -64,6 +74,7 @@ class ModelShow(Base):
 	create_time = Column(DateTime)
 	title = Column(String(64))
 	hits = Column(Integer)
+	# 外键指向的是实际 table 的 column，总之只要是设置 Column 就要用实际 table 属性，而不是模型属性
 	model_id = Column(Integer, ForeignKey('woman_models.id'))
 	
 	def __repr__(self):
