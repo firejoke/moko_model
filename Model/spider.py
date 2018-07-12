@@ -260,7 +260,7 @@ def model_show_list(url_id):
 	if next_url:
 		print('======show_list nex url======', '\n', next_url)
 		if next_url[0].startswith('/'):
-			return next_url, (show_list, url_id[1])
+			return next_url.append(url_id[1]), (show_list, url_id[1])
 		else:
 			return None, (show_list, url_id[1])
 	else:
@@ -284,6 +284,8 @@ def photo_list(url_id):
 	time.sleep(2)
 	new_resp = requests.get(url = url, headers = HEADERS_DEFAULT, cookies = COOKIES)
 	new_html = etree.HTML(new_resp.text)
+	# 防止页面没加载完毕
+	# time.sleep(5)
 	photo_list = new_html.xpath('//p[@class="picBox"]//img/@src2')
 	hits = int(new_html.xpath('//a[@class="sPoint gC"]/text()')[0][1:-1])
 	create_time = new_html.xpath('//p[@class="date gC1"]/text()')[0]
@@ -314,50 +316,47 @@ def spider(url):
 	show_p = Pool(processes = 1)
 	photo_q = Queue()
 	photo_p = Pool(processes = 2)
+	# 进程池是否终止的状态码
+	show_p_live = 1
+	profile_p_live = 1
 	try:
-		while 1:
-			url = list_spider(url)
-			if not url:
-				print('Finish')
-				break
-			time.sleep(2)
-		time.sleep(10)
+		# while 1:
+		# 	url = list_spider(url)
+		# 	if not url:
+		# 		print('Finish')
+		# 		break
+		# 	time.sleep(2)
+		# time.sleep(10)
 		# 因为首页pages不多，就等它跑完再开其他spider，也就40second，而且也不用担心数据库冲突，偷懒:-)
 		print('======首页爬完，开始model_info 和 show_list======')
 		profile_new_id = 0
 		show_new_id = 0
+		model_photo_list = []
 		while 1:
-			model_post_url_list = []
-			model_show_url_list = []
-			model_photo_list = []
 			if not profile_q.empty():
 				"""开启info spider"""
 				profile_p.apply(model_post, profile_q.get())
 			if not show_q.empty():
-				"""开启展示pages spider"""
 				res = show_p.apply(model_show_list, args = (show_q.get(),))
 				if res[0]:
 					show_q.put(res[0])
-				"""返回值put进photo spider的Queue里"""
 				[photo_q.put((photo_url, res[1][1])) for photo_url in res[1][0]]
 			if not photo_q.empty():
-				"""开启photo spider"""
 				model_photo_list.append(photo_p.apply_async(func = photo_list, args = (photo_q.get(),)).get())
-			if profile_q.empty():
+			if profile_q.empty() and profile_p_live:
 				"""拿主表数据put进info spider的食盘"""
 				model_post_url_list = db_session.query(WomanModels.model_home) \
 					.filter(WomanModels.id.in_(range(profile_new_id, profile_new_id + 10)))
 				model_post_url_list = list(model_post_url_list)
 				if model_post_url_list:
-					print('model_post_url_list')
 					[profile_q.put(post_url) for post_url in model_post_url_list]
 					profile_new_id += 10
 				else:
-					print('model_post_url_list empty')
 					profile_q.close()
 					profile_p.close()
 					profile_p.terminate()
-			if show_q.empty():
+					profile_p_live = 0
+			if show_q.empty() and show_p_live:
 				"""
 				有重复代码，但因为show页面可能有好几页，如果和profile用同一个Queue
 				当它把这几个页面爬完的时候，可能profile已经从Queue取走好几个URL，充满了不确定性
@@ -366,29 +365,23 @@ def spider(url):
 					.filter(WomanModels.id.in_(range(show_new_id, show_new_id + 10)))
 				model_show_url_list = list(model_show_url_list)
 				if model_show_url_list:
-					print('model_show_url_list')
 					[show_q.put(show_url_and_id) for show_url_and_id in model_show_url_list]
 					show_new_id += 10
 				else:
-					print('model_show_url_list empty')
 					show_q.close()
 					show_p.close()
 					show_p.terminate()
-				# 如果两个都拿不到URL了就等待子进程结束再退出循环
-				if not model_post_url_list and not model_show_url_list:
-					# 等待photo进程结束
-					while 1:
-						if photo_q.empty():
-							break
-						else:
-							photo_p.apply_async(func = photo_list, args = (photo_q.get(),))
-					photo_q.close()
-					photo_p.close()
-					photo_p.terminate()
-					profile_p.join()
-					show_p.join()
-					photo_p.join()
-					break
+					show_p_live = 0
+			# 如果两个都拿不到URL了就等待子进程结束再退出循环
+			if show_q.empty() and profile_q.empty() and photo_q.empty():
+				# 等待photo进程结束
+				photo_q.close()
+				photo_p.close()
+				photo_p.terminate()
+				profile_p.join()
+				show_p.join()
+				photo_p.join()
+				break
 		model_photo_list = \
 			[
 				[
