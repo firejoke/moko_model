@@ -285,7 +285,7 @@ def photo_list(url_id):
 	new_resp = requests.get(url = url, headers = HEADERS_DEFAULT, cookies = COOKIES)
 	new_html = etree.HTML(new_resp.text)
 	# 防止页面没加载完毕
-	# time.sleep(5)
+	time.sleep(5)
 	photo_list = new_html.xpath('//p[@class="picBox"]//img/@src2')
 	hits = int(new_html.xpath('//a[@class="sPoint gC"]/text()')[0][1:-1])
 	create_time = new_html.xpath('//p[@class="date gC1"]/text()')[0]
@@ -320,13 +320,13 @@ def spider(url):
 	show_p_live = 1
 	profile_p_live = 1
 	try:
-		# while 1:
-		# 	url = list_spider(url)
-		# 	if not url:
-		# 		print('Finish')
-		# 		break
-		# 	time.sleep(2)
-		# time.sleep(10)
+		while 1:
+			url = list_spider(url)
+			if not url:
+				print('Finish')
+				break
+			time.sleep(2)
+		time.sleep(10)
 		# 因为首页pages不多，就等它跑完再开其他spider，也就40second，而且也不用担心数据库冲突，偷懒:-)
 		print('======首页爬完，开始model_info 和 show_list======')
 		profile_new_id = 0
