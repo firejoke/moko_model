@@ -332,7 +332,7 @@ def photo_list(url_id):
 	# 坑...居然有的title没有text，直接写在<a>的属性里的...
 	title = new_html.xpath('//h2[@class="text dBd_1"]/a/text()')
 	# 加一个避雷针
-	title = title if title else new_html.xpath('//h2[@class="text dBd_1"]/a/@title')
+	title = title[0] if title else new_html.xpath('//h2[@class="text dBd_1"]/a/@title')
 	model_photos = [
 		dict(href = photo_url, create_time = create_time, title = title, hits = hits, model_id = url_id[1])
 		for photo_url in photo_list]
