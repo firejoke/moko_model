@@ -293,9 +293,10 @@ def model_show_list(url_id):
 	show_list = new_html.xpath('//a[@class="coverBg wC"]/@href')
 	next_url = new_html.xpath('//p[@class="page"]/a[@class="mBC wC"]/following::a[1]/@href')
 	if next_url:
-		print('======show_list nex url======', '\n', next_url)
 		if next_url[0].startswith('/'):
-			return next_url.append(url_id[1]), (show_list, url_id[1])
+			next_url.append(url_id[1])
+			print('======show_list nex url======', '\n', next_url)
+			return next_url, (show_list, url_id[1])
 		else:
 			return None, (show_list, url_id[1])
 	else:
@@ -316,7 +317,7 @@ def model_show_list(url_id):
 def photo_list(url_id):
 	print(url_id)
 	url = URL_DEFAULT + url_id[0]
-	time.sleep(2)
+	time.sleep(1)
 	new_resp = requests.get(url = url, headers = HEADERS_DEFAULT, cookies = COOKIES)
 	new_html = etree.HTML(new_resp.text)
 	photo_list = new_html.xpath('//p[@class="picBox"]//img/@src2')
