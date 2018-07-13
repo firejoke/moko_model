@@ -1,4 +1,4 @@
-# moko_model\
+# moko_model
 一个并行式小爬虫\
 sql:\
     SQLAlchemy
@@ -8,10 +8,10 @@ request:\
     Process
 \
 写着写着就变成了一个小框架......\
-###7/10
+###7/10\
     又写了一天报错......
 \
-###7/12
+###7/12\
     终端里跑到\
     *
     ===model_show的spider===\
@@ -63,3 +63,5 @@ request:\
 				] for model_photo_generator in model_photo_list\
 			]\
 	'\
+###7/13\
+    一晚上起来，发现有的页面被删除了，在信息匹配那里引发了IndexError 加一个判断避雷

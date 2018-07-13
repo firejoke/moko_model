@@ -96,8 +96,6 @@ def list_spider(url):
 	print(next_url)
 	if next_url.startswith('/'):
 		return next_url
-	else:
-		return None
 
 
 """===model个人信息spider==="""
@@ -110,180 +108,186 @@ def model_post(url):
 	time.sleep(2)
 	new_resp = requests.get(url = url, headers = HEADERS_DEFAULT, cookies = COOKIES)
 	new_html = etree.HTML(new_resp.text)
-	publisher = new_html.xpath('//a[@id="workNickName"]/text()')[0]
-	position_list = new_html.xpath('//*[@class="b gC"]/text()')
-	w_model = db_session.query(WomanModels).filter_by(publisher = publisher).first()
-	info_list = new_html.xpath('//div[@class="profile-module-box profile-line-module"]//*')
-	job_list = new_html.xpath('//div[@class="profile-module-box"]//*')
-	contact_list = new_html.xpath('//div[@class="only-firend"]//*')
-	job_price_list = new_html.xpath('//div[@class="profile-module-box gC"]//li//*/text()')
-	user_broker = UserBroker()
-	user_broker_stats = 0
-	job = w_model.job
-	if len(position_list) >= 2:
-		job.psoition_second = position_list[1]
-		if position_list[2:]:
-			job.psoition_third = position_list[2]
-	school = School(model_id = w_model.id)
-	# 因为school信息和个人信息以及爱好之类的混在一起，所以设置一个状态码
-	# 如果没有学校信息就不保存空的School对象
-	school_stats = 0
-	model_info = ModelInfo(model_id = w_model.id)
-	hobby = Hobby()
-	# 同上理
-	hobby_stats = 0
-	contact = Contact()
-	# 防止对方把字段对应的值设成和字段一样
-	try:
-		if info_list:
-			for i, e in enumerate(info_list[::2]):
-				# 基础信息
-				if e.text == '出生日期':
-					birthday = [int(e) for e in re.split(r'-', info_list[2 * i + 1].text)]
-					if len(birthday) == 2:
-						model_info.birthday = datetime.date(1, birthday[0], birthday[1])
-					elif len(birthday) == 3:
-						model_info.birthday = datetime.date(birthday[0], birthday[1], birthday[2])
-				elif e.text == '星座':
-					model_info.constellation = info_list[2 * i + 1].text
-				elif e.text == '血型':
-					model_info.blood_group = info_list[2 * i + 1].text
-				elif e.text == '身高(cm)':
-					model_info.height = info_list[2 * i + 1].text
-				elif e.text == '体重(kg)':
-					model_info.weight = info_list[2 * i + 1].text
-				elif e.text == '三围(cm)':
-					model_info.shape = info_list[2 * i + 1].text
-				elif e.text == '头发颜色':
-					model_info.hair_color = info_list[2 * i + 1].text
-				elif e.text == '眼睛颜色':
-					model_info.eye_color = info_list[2 * i + 1].text
-				elif e.text == '鞋码':
-					model_info.shoe_size = info_list[2 * i + 1].text
-				# 学校
-				elif e.text == '大学':
-					school.school_name = info_list[2 * i + 1].text
-					school_stats += 1
-				elif e.text == '毕业年份':
-					school.finish_school = datetime.date(int(info_list[2 * i + 1].text), 6, 6)
-					school_stats += 1
-				elif e.text == '学历':
-					school.education = info_list[2 * i + 1].text
-					school_stats += 1
-				elif e.text == '院系':
-					school.factions = info_list[2 * i + 1].text
-					school_stats += 1
-				# 经纪公司
-				elif e.text == '签约公司':
-					user_broker.company = info_list[2 * i + 1].text
-					user_broker_stats += 1
-				elif e.text == '经纪人':
-					user_broker.broker = info_list[2 * i + 1].text
-					user_broker_stats += 1
-				elif e.text == '手机':
-					user_broker.broker_phone = info_list[2 * i + 1].text
-					user_broker_stats += 1
-				elif e.text == 'E-mail':
-					user_broker.broker_email = info_list[2 * i + 1].text
-					user_broker_stats += 1
-				# 爱好
-				elif e.text == '喜欢的音乐':
-					hobby.music = info_list[2 * i + 1].text
-					hobby_stats += 1
-				elif e.text == '喜欢的明星':
-					hobby.star = info_list[2 * i + 1].text
-					hobby_stats += 1
-				elif e.text == '喜欢的电影':
-					hobby.movies = info_list[2 * i + 1].text
-					hobby_stats += 1
-				elif e.text == '喜欢的电视':
-					hobby.tv = info_list[2 * i + 1].text
-					hobby_stats += 1
-				elif e.text == '喜欢的运动':
-					hobby.sport = info_list[2 * i + 1].text
-					hobby_stats += 1
-				elif e.text == '喜欢的书':
-					hobby.book = info_list[2 * i + 1].text
-					hobby_stats += 1
-				elif e.text == '其他':
-					hobby.other = info_list[2 * i + 1].text
-					hobby_stats += 1
-	except IndexError as info_error:
-		model_info = 0
-		print(URL_DEFAULT + url + ' info==>有陷阱', '\n', info_error)
-	try:
-		if job_list:
-			for i, e in enumerate(job_list[::2]):
-				if e.text == '所在公司':
-					job.now_company = job_list[2 * i + 1].text
-				elif e.text == '头衔':
-					job.title = job_list[2 * i + 1].text
-				elif e.text == '经历':
-					job.experience = job_list[2 * i + 1].text
-				# 作品
-				elif e.text == '展览作品':
-					job.show_works = job_list[2 * i + 1].text
-				elif e.text == '其他作品':
-					job.other_works = job_list[2 * i + 1].text
-				# 奖项
-				elif e.text == '最高奖项':
-					job.top_trophies = job_list[2 * i + 1].text
-				elif e.text == '其他奖项':
-					job.trophies = job_list[2 * i + 1].text
-	except IndexError as job_error:
-		job = 0
-		print(URL_DEFAULT + 'profile/lijiaji.html' + ' job==>有陷阱', '\n', job_error)
-	try:
-		# 因为没找到有联系方式的页面，不知道她页面上会怎么写，所以用的in
-		if contact_list:
-			for i, e in enumerate(contact_list[::2]):
-				if '名字' in e.text:
-					contact.m_name = contact_list[2 * i + 1].text
-				elif 'mail' in e.text.lower():
-					contact.email = contact_list[2 * i + 1].text
-				elif '手机' in e.text:
-					contact.phone = contact_list[2 * i + 1].text
-				elif '电话' in e.text:
-					contact.phone_b = contact_list[2 * i + 1].text
-				elif '微信' in e.text:
-					contact.wechat = contact_list[2 * i + 1].text
-				elif 'QQ' in e.text.lower():
-					contact.qq = contact_list[2 * i + 1].text
-	except IndexError as contact_error:
-		contact = 0
-		print(URL_DEFAULT + url + 'contact==>有陷阱', '\n', contact_error)
-	try:
-		job_price_list = [re.search(r"\d{3,6},\d{3,6},", e).group().split(',') if e.startswith('j') else e for e in
-			job_price_list]
-		job_price_list = [
-			JobPrice(job_name = e, price_lower = job_price_list[2 * i + 1][0], price_up = job_price_list[2 * i + 1][1])
-			for i, e in
-			enumerate(job_price_list[::2])
-		]
-	except IndexError as price_error:
-		job_price_list = 0
-		print(URL_DEFAULT + url + ' job_price==>有陷阱', '\n', price_error)
-	# 一切就绪，开始创建模型对象
-	try:
-		if model_info:
-			if hobby_stats:
-				model_info.hobby = hobby
-			if contact:
-				model_info.contact = contact
-			db_session.add(model_info)
-		if job:
-			if job_price_list:
-				job.job_price = job_price_list
-			db_session.add(job)
-		if school_stats:
-			db_session.add(school)
-		if user_broker_stats:
-			db_session.add(user_broker)
-		db_session.commit()
-		print('======model_post end======')
-	except Exception as error:
-		db_session.rollback()
-		print(error)
+	publisher = new_html.xpath('//a[@id="workNickName"]/text()')
+	publisher = publisher[0] if publisher else 0
+	# 预防模特页面被删除了
+	if publisher:
+		position_list = new_html.xpath('//*[@class="b gC"]/text()')
+		w_model = db_session.query(WomanModels).filter_by(publisher = publisher).first()
+		info_list = new_html.xpath('//div[@class="profile-module-box profile-line-module"]//*')
+		job_list = new_html.xpath('//div[@class="profile-module-box"]//*')
+		contact_list = new_html.xpath('//div[@class="only-firend"]//*')
+		job_price_list = new_html.xpath('//div[@class="profile-module-box gC"]//li//*/text()')
+		user_broker = UserBroker()
+		user_broker_stats = 0
+		job = w_model.job
+		if len(position_list) >= 2:
+			job.psoition_second = position_list[1]
+			if position_list[2:]:
+				job.psoition_third = position_list[2]
+		school = School(model_id = w_model.id)
+		# 因为school信息和个人信息以及爱好之类的混在一起，所以设置一个状态码
+		# 如果没有学校信息就不保存空的School对象
+		school_stats = 0
+		model_info = ModelInfo(model_id = w_model.id)
+		hobby = Hobby()
+		# 同上理
+		hobby_stats = 0
+		contact = Contact()
+		# 防止对方把字段对应的值设成和字段一样
+		try:
+			if info_list:
+				for i, e in enumerate(info_list[::2]):
+					# 基础信息
+					if e.text == '出生日期':
+						birthday = [int(e) for e in re.split(r'-', info_list[2 * i + 1].text)]
+						if len(birthday) == 2:
+							model_info.birthday = datetime.date(1, birthday[0], birthday[1])
+						elif len(birthday) == 3:
+							model_info.birthday = datetime.date(birthday[0], birthday[1], birthday[2])
+					elif e.text == '星座':
+						model_info.constellation = info_list[2 * i + 1].text
+					elif e.text == '血型':
+						model_info.blood_group = info_list[2 * i + 1].text
+					elif e.text == '身高(cm)':
+						model_info.height = info_list[2 * i + 1].text
+					elif e.text == '体重(kg)':
+						model_info.weight = info_list[2 * i + 1].text
+					elif e.text == '三围(cm)':
+						model_info.shape = info_list[2 * i + 1].text
+					elif e.text == '头发颜色':
+						model_info.hair_color = info_list[2 * i + 1].text
+					elif e.text == '眼睛颜色':
+						model_info.eye_color = info_list[2 * i + 1].text
+					elif e.text == '鞋码':
+						model_info.shoe_size = info_list[2 * i + 1].text
+					# 学校
+					elif e.text == '大学':
+						school.school_name = info_list[2 * i + 1].text
+						school_stats += 1
+					elif e.text == '毕业年份':
+						school.finish_school = datetime.date(int(info_list[2 * i + 1].text), 6, 6)
+						school_stats += 1
+					elif e.text == '学历':
+						school.education = info_list[2 * i + 1].text
+						school_stats += 1
+					elif e.text == '院系':
+						school.factions = info_list[2 * i + 1].text
+						school_stats += 1
+					# 经纪公司
+					elif e.text == '签约公司':
+						user_broker.company = info_list[2 * i + 1].text
+						user_broker_stats += 1
+					elif e.text == '经纪人':
+						user_broker.broker = info_list[2 * i + 1].text
+						user_broker_stats += 1
+					elif e.text == '手机':
+						user_broker.broker_phone = info_list[2 * i + 1].text
+						user_broker_stats += 1
+					elif e.text == 'E-mail':
+						user_broker.broker_email = info_list[2 * i + 1].text
+						user_broker_stats += 1
+					# 爱好
+					elif e.text == '喜欢的音乐':
+						hobby.music = info_list[2 * i + 1].text
+						hobby_stats += 1
+					elif e.text == '喜欢的明星':
+						hobby.star = info_list[2 * i + 1].text
+						hobby_stats += 1
+					elif e.text == '喜欢的电影':
+						hobby.movies = info_list[2 * i + 1].text
+						hobby_stats += 1
+					elif e.text == '喜欢的电视':
+						hobby.tv = info_list[2 * i + 1].text
+						hobby_stats += 1
+					elif e.text == '喜欢的运动':
+						hobby.sport = info_list[2 * i + 1].text
+						hobby_stats += 1
+					elif e.text == '喜欢的书':
+						hobby.book = info_list[2 * i + 1].text
+						hobby_stats += 1
+					elif e.text == '其他':
+						hobby.other = info_list[2 * i + 1].text
+						hobby_stats += 1
+		except IndexError as info_error:
+			model_info = 0
+			print(URL_DEFAULT + url + ' info==>有陷阱', '\n', info_error)
+		try:
+			if job_list:
+				for i, e in enumerate(job_list[::2]):
+					if e.text == '所在公司':
+						job.now_company = job_list[2 * i + 1].text
+					elif e.text == '头衔':
+						job.title = job_list[2 * i + 1].text
+					elif e.text == '经历':
+						job.experience = job_list[2 * i + 1].text
+					# 作品
+					elif e.text == '展览作品':
+						job.show_works = job_list[2 * i + 1].text
+					elif e.text == '其他作品':
+						job.other_works = job_list[2 * i + 1].text
+					# 奖项
+					elif e.text == '最高奖项':
+						job.top_trophies = job_list[2 * i + 1].text
+					elif e.text == '其他奖项':
+						job.trophies = job_list[2 * i + 1].text
+		except IndexError as job_error:
+			job = 0
+			print(URL_DEFAULT + 'profile/lijiaji.html' + ' job==>有陷阱', '\n', job_error)
+		try:
+			# 因为没找到有联系方式的页面，不知道她页面上会怎么写，所以用的in
+			if contact_list:
+				for i, e in enumerate(contact_list[::2]):
+					if '名字' in e.text:
+						contact.m_name = contact_list[2 * i + 1].text
+					elif 'mail' in e.text.lower():
+						contact.email = contact_list[2 * i + 1].text
+					elif '手机' in e.text:
+						contact.phone = contact_list[2 * i + 1].text
+					elif '电话' in e.text:
+						contact.phone_b = contact_list[2 * i + 1].text
+					elif '微信' in e.text:
+						contact.wechat = contact_list[2 * i + 1].text
+					elif 'QQ' in e.text.lower():
+						contact.qq = contact_list[2 * i + 1].text
+		except IndexError as contact_error:
+			contact = 0
+			print(URL_DEFAULT + url + 'contact==>有陷阱', '\n', contact_error)
+		try:
+			job_price_list = [re.search(r"\d{3,6},\d{3,6},", e).group().split(',') if e.startswith('j') else e for e in
+				job_price_list]
+			job_price_list = [
+				JobPrice(job_name = e, price_lower = job_price_list[2 * i + 1][0],
+						price_up = job_price_list[2 * i + 1][1])
+				for i, e in
+				enumerate(job_price_list[::2])
+			]
+		except IndexError as price_error:
+			job_price_list = 0
+			print(URL_DEFAULT + url + ' job_price==>有陷阱', '\n', price_error)
+		# 一切就绪，开始创建模型对象
+		try:
+			if model_info:
+				if hobby_stats:
+					model_info.hobby = hobby
+				if contact:
+					model_info.contact = contact
+				db_session.add(model_info)
+			if job:
+				if job_price_list:
+					job.job_price = job_price_list
+				db_session.add(job)
+			if school_stats:
+				db_session.add(school)
+			if user_broker_stats:
+				db_session.add(user_broker)
+			db_session.commit()
+			print('======model_post end======')
+		except Exception as error:
+			db_session.rollback()
+			print(error)
+	else:
+		return None
 
 
 """===model_show的spider==="""
@@ -296,16 +300,20 @@ def model_show_list(url_id):
 	new_resp = requests.get(url = url, headers = HEADERS_DEFAULT, cookies = COOKIES)
 	new_html = etree.HTML(new_resp.text)
 	show_list = new_html.xpath('//a[@class="coverBg wC"]/@href')
-	next_url = new_html.xpath('//p[@class="page"]/a[@class="mBC wC"]/following::a[1]/@href')
-	if next_url:
-		if next_url[0].startswith('/'):
-			next_url.append(url_id[1])
-			print('======show_list nex url======', '\n', next_url)
-			return next_url, (show_list, url_id[1])
+	# 以防页面被删除
+	if show_list:
+		next_url = new_html.xpath('//p[@class="page"]/a[@class="mBC wC"]/following::a[1]/@href')
+		if next_url:
+			if next_url[0].startswith('/'):
+				next_url.append(url_id[1])
+				print('======show_list nex url======', '\n', next_url)
+				return next_url, (show_list, url_id[1])
+			else:
+				return None, (show_list, url_id[1])
 		else:
 			return None, (show_list, url_id[1])
 	else:
-		return None, (show_list, url_id[1])
+		return None
 
 
 """===子相册的图片spider===
@@ -325,19 +333,23 @@ def photo_list(url_id):
 	time.sleep(1)
 	new_resp = requests.get(url = url, headers = HEADERS_DEFAULT, cookies = COOKIES)
 	new_html = etree.HTML(new_resp.text)
+	# 又一个坑，有的页面被删除了......
 	photo_list = new_html.xpath('//p[@class="picBox"]//img/@src2')
-	hits = int(new_html.xpath('//a[@class="sPoint gC"]/text()')[0][1:-1])
-	create_time = new_html.xpath('//p[@class="date gC1"]/text()')[0]
-	create_time = datetime.datetime.strptime(create_time, "%Y-%m-%d %H:%M:%S")
-	# 坑...居然有的title没有text，直接写在<a>的属性里的...
-	title = new_html.xpath('//h2[@class="text dBd_1"]/a/text()')
-	# 加一个避雷针
-	title = title[0] if title else new_html.xpath('//h2[@class="text dBd_1"]/a/@title')
-	model_photos = [
-		dict(href = photo_url, create_time = create_time, title = title, hits = hits, model_id = url_id[1])
-		for photo_url in photo_list]
-	print('======photo_list end======')
-	return model_photos
+	if photo_list:
+		hits = int(new_html.xpath('//a[@class="sPoint gC"]/text()')[0][1:-1])
+		create_time = new_html.xpath('//p[@class="date gC1"]/text()')[0]
+		create_time = datetime.datetime.strptime(create_time, "%Y-%m-%d %H:%M:%S")
+		# 坑...居然有的title没有text，直接写在<a>的属性里的...
+		title = new_html.xpath('//h2[@class="text dBd_1"]/a/text()')
+		# 加一个避雷针
+		title = title[0] if title else new_html.xpath('//h2[@class="text dBd_1"]/a/@title')[0]
+		model_photos = [
+			dict(href = photo_url, create_time = create_time, title = title, hits = hits, model_id = url_id[1])
+			for photo_url in photo_list]
+		print('======photo_list end======')
+		return model_photos
+	else:
+		return None
 
 
 """===一切的开始==="""
@@ -421,15 +433,17 @@ def spider(url):
 					"""开启show pages spider"""
 					print("===model_show的spider===", '\n')
 					res = show_p.apply(model_show_list, args = (show_q.get(),))
-					if res[0]:
-						show_q.put(res[0])
-					# 把子相册URL put进photo spider 的食盘里
-					[photo_q.put((photo_list_url, res[1][1])) for photo_list_url in res[1][0]]
+					if res[1:]:
+						if res[0]:
+							show_q.put(res[0])
+						# 把子相册URL put进photo spider 的食盘里
+						[photo_q.put((photo_list_url, res[1][1])) for photo_list_url in res[1][0]]
 			if not photo_q.empty():
 				"""开启photo spider"""
 				print("===子相册的图片spider first===", '\n')
 				res = photo_p.apply_async(func = photo_list, args = (photo_q.get(),)).get()
-				[photo_url_q.put(photo_url) for photo_url in res]
+				if res[0]:
+					[photo_url_q.put(photo_url) for photo_url in res]
 			# 同时开两个，加快速度
 			if not photo_q.empty():
 				print("===子相册的图片spider second===", '\n')
