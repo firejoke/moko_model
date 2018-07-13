@@ -452,16 +452,19 @@ def spider(url):
 					[photo_url_q.put(photo_url) for photo_url in res]
 			if not photo_url_q.empty():
 				q_get = photo_url_q.get()
+				print('q_get', q_get)
 				try:
 					db_session.add(
 							ModelShow(href = q_get['href'], create_time = q_get['create_time'],
 									title = q_get['title'], hits = q_get['hits'], model_id = q_get['model_id'])
 					)
+					db_session.commit()
 				except Exception as ModelShow_error:
 					db_session.rollback()
 					print(ModelShow_error)
+				print('photo_url_q', photo_url_q.empty())
 			# 当profile_p 和 show_p 的任务都完结了的时候，
-			if not show_p_live and photo_q.empty() and photo_url_q.empty():
+			if not profile_p_live and not show_p_live and photo_q.empty() and photo_url_q.empty():
 				# 等待photo进程结束
 				photo_q.close()
 				photo_p.close()
