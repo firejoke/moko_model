@@ -117,7 +117,7 @@ def model_post(url):
 		job_list = new_html.xpath('//div[@class="profile-module-box"]//*')
 		contact_list = new_html.xpath('//div[@class="only-firend"]//*')
 		job_price_list = new_html.xpath('//div[@class="profile-module-box gC"]//li//*/text()')
-		user_broker = UserBroker()
+		user_broker = UserBroker(woman_models = [w_model])
 		user_broker_stats = 0
 		job = w_model.job
 		if len(position_list) >= 2:
@@ -128,7 +128,9 @@ def model_post(url):
 		# 因为school信息和个人信息以及爱好之类的混在一起，所以设置一个状态码
 		# 如果没有学校信息就不保存空的School对象
 		school_stats = 0
-		model_info = ModelInfo(model_id = w_model.id)
+		# 用来可以在后续持续更新个人信息
+		model_info = db_session.query(ModelInfo).filter_by(model_id = w_model.id).all()
+		model_info = model_info[0] if model_info else ModelInfo(model_id = w_model.id)
 		hobby = Hobby()
 		# 同上理
 		hobby_stats = 0
@@ -401,7 +403,6 @@ def spider(url):
 						[profile_q.put(post_url) for post_url in model_post_url_list]
 						profile_new_id += 10
 					else:
-						# profile_q.close()
 						profile_p.close()
 						profile_p.terminate()
 						profile_p_live = 0
@@ -425,7 +426,6 @@ def spider(url):
 						[show_q.put(show_url_and_id) for show_url_and_id in model_show_url_list]
 						show_new_id += 10
 					else:
-						# show_q.close()
 						show_p.close()
 						show_p.terminate()
 						show_p_live = 0
@@ -464,9 +464,8 @@ def spider(url):
 					print(ModelShow_error)
 				print('photo_url_q', photo_url_q.empty())
 			# 当profile_p 和 show_p 的任务都完结了的时候，
-			if not profile_p_live and not show_p_live and photo_q.empty() and photo_url_q.empty():
+			if not profile_p_live:
 				# 等待photo进程结束
-				# photo_q.close()
 				photo_p.close()
 				photo_p.terminate()
 				profile_p.join()

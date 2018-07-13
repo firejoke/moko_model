@@ -71,3 +71,4 @@ request:\
     但没想到，这个Manager().Queue()没有close方法\
     报了一个这个错误：\
     'AutoProxy[Queue]' object has no attribute 'close'\
+##数据都拿到了，这个项目暂时告一段落，去攻克别的pro
