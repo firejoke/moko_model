@@ -64,4 +64,10 @@ request:\
 			]\
 	'\
 ###7/13\
-    一晚上起来，发现有的页面被删除了，在信息匹配那里引发了IndexError 加一个判断避雷
+    一晚上起来，发现有的页面被删除了，在信息匹配那里引发了IndexError 加一个判断避雷\
+    \
+    \
+    把之前用的multiprocessing.Queue 改成了multiprocessing.Manager().Queue()\
+    但没想到，这个Manager().Queue()没有close方法\
+    报了一个这个错误：\
+    'AutoProxy[Queue]' object has no attribute 'close'\

@@ -2,12 +2,11 @@ import datetime
 import logging
 import re
 import time
-from multiprocessing import Queue, Process
+from multiprocessing import Queue, Manager
 from multiprocessing.pool import Pool
 
 import requests
 from lxml import etree
-from sqlalchemy import and_
 
 from setting import db_session, HEADERS_DEFAULT, COOKIES, URL_DEFAULT
 from .models import *
@@ -365,13 +364,14 @@ def spider(url):
 		model_show_list==> 获取展示页面的所有子相册链接
 			photo_list==> 获取每一个子相册内的图片链接
 	"""
-	profile_q = Queue()
+	manager = Manager()
+	profile_q = manager.Queue()
 	profile_p = Pool(processes = 1)
-	show_q = Queue()
+	show_q = manager.Queue()
 	show_p = Pool(processes = 1)
-	photo_q = Queue()
+	photo_q = manager.Queue()
 	photo_p = Pool(processes = 2)
-	photo_url_q = Queue()
+	photo_url_q = manager.Queue()
 	# 进程池是否终止的状态码
 	show_p_live = 1
 	profile_p_live = 1
@@ -401,7 +401,7 @@ def spider(url):
 						[profile_q.put(post_url) for post_url in model_post_url_list]
 						profile_new_id += 10
 					else:
-						profile_q.close()
+						# profile_q.close()
 						profile_p.close()
 						profile_p.terminate()
 						profile_p_live = 0
@@ -425,7 +425,7 @@ def spider(url):
 						[show_q.put(show_url_and_id) for show_url_and_id in model_show_url_list]
 						show_new_id += 10
 					else:
-						show_q.close()
+						# show_q.close()
 						show_p.close()
 						show_p.terminate()
 						show_p_live = 0
@@ -466,7 +466,7 @@ def spider(url):
 			# 当profile_p 和 show_p 的任务都完结了的时候，
 			if not profile_p_live and not show_p_live and photo_q.empty() and photo_url_q.empty():
 				# 等待photo进程结束
-				photo_q.close()
+				# photo_q.close()
 				photo_p.close()
 				photo_p.terminate()
 				profile_p.join()
