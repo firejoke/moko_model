@@ -365,8 +365,8 @@ def spider(url):
 		model_show_list==> 获取展示页面的所有子相册链接
 			photo_list==> 获取每一个子相册内的图片链接
 	"""
-	# profile_q = Queue()
-	# profile_p = Pool(processes = 1)
+	profile_q = Queue()
+	profile_p = Pool(processes = 1)
 	show_q = Queue()
 	show_p = Pool(processes = 1)
 	photo_q = Queue()
@@ -374,41 +374,41 @@ def spider(url):
 	photo_url_q = Queue()
 	# 进程池是否终止的状态码
 	show_p_live = 1
-	# profile_p_live = 1
+	profile_p_live = 1
 	try:
-		# while 1:
-		# 	url = list_spider(url)
-		# 	if not url:
-		# 		print('Finish')
-		# 		break
-		# 	time.sleep(2)
-		# time.sleep(10)
-		# # 因为首页pages不多，就等它跑完再开其他spider，也就40second，而且也不用担心数据库冲突，偷懒:-)
-		# print('======首页爬完，开始model_info 和 show_list======')
-		# profile_new_id = 0
+		while 1:
+			url = list_spider(url)
+			if not url:
+				print('Finish')
+				break
+			time.sleep(2)
+		time.sleep(10)
+		# 因为首页pages不多，就等它跑完再开其他spider，也就40second，而且也不用担心数据库冲突，偷懒:-)
+		print('======首页爬完，开始model_info 和 show_list======')
+		profile_new_id = 0
 		show_new_id = 0
 		while 1:
 			# 当profile_p 进程池任务没完结的时候
-			# if profile_p_live:
-			# 	if profile_q.empty():
-			# 		"""拿主表数据put进info spider的食盘"""
-			# 		print('profile query sql')
-			# 		model_post_url_list = db_session.query(WomanModels.model_home) \
-			# 			.filter(WomanModels.id.in_(range(profile_new_id, profile_new_id + 10)))
-			# 		model_post_url_list = list(model_post_url_list)
-			# 		print('profile query sql end')
-			# 		if model_post_url_list:
-			# 			[profile_q.put(post_url) for post_url in model_post_url_list]
-			# 			profile_new_id += 10
-			# 		else:
-			# 			profile_q.close()
-			# 			profile_p.close()
-			# 			profile_p.terminate()
-			# 			profile_p_live = 0
-			# 	else:
-			# 		"""开启info spider"""
-			# 		print("===model个人信息spider===", '\n')
-			# 		profile_p.apply(model_post, profile_q.get())
+			if profile_p_live:
+				if profile_q.empty():
+					"""拿主表数据put进info spider的食盘"""
+					print('profile query sql')
+					model_post_url_list = db_session.query(WomanModels.model_home) \
+						.filter(WomanModels.id.in_(range(profile_new_id, profile_new_id + 10)))
+					model_post_url_list = list(model_post_url_list)
+					print('profile query sql end')
+					if model_post_url_list:
+						[profile_q.put(post_url) for post_url in model_post_url_list]
+						profile_new_id += 10
+					else:
+						profile_q.close()
+						profile_p.close()
+						profile_p.terminate()
+						profile_p_live = 0
+				else:
+					"""开启info spider"""
+					print("===model个人信息spider===", '\n')
+					profile_p.apply(model_post, profile_q.get())
 			# 当show_p 进程池任务没完结的时候
 			if show_p_live:
 				if show_q.empty():
@@ -466,7 +466,7 @@ def spider(url):
 				photo_q.close()
 				photo_p.close()
 				photo_p.terminate()
-				# profile_p.join()
+				profile_p.join()
 				show_p.join()
 				photo_p.join()
 				break
