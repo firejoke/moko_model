@@ -24,7 +24,7 @@ with open(db_config, 'r') as f:
 	DATABASE_DEFAULT = '{}+{}://{}:{}@{}:{}/{}?charset={}'.format(db, drive, user, password, host, port, name, charset)
 
 # 创建连接数据库
-engine = create_engine('mysql+pymysql://guest:test_guest@localhost:3306/moko?charset=utf8', echo = True)
+engine = create_engine(DATABASE_DEFAULT, echo = True)
 # ORM基类
 Base = declarative_base(bind = engine)
 # 配置orm数据库入口 Session()类
