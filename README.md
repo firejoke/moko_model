@@ -39,8 +39,8 @@ request:\
             'id_9': 368, 'id_10': 369}\
     2018-07-12 15:03:27,014 INFO sqlalchemy.engine.base.Engine ROLLBACK\
     handle is closed\
-    *
-\
+    *\
+
     352是woman_models table最后一个id\
     应该是跟关闭进程池有关\
     spider逻辑已经证明没问题了\
