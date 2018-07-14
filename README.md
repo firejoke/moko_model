@@ -13,8 +13,8 @@ request:\
 \
 ###7/12\
 终端里跑到
-*
-	'===model_show的spider===
+*\
+	===model_show的spider===
 	/320771e8341a4efb97bf7f2e84b56d7a/ 352
 	===子相册的图片spider===
 	('/post/1302816.html', 51)
@@ -38,7 +38,7 @@ request:\
 	    {'id_1': 360, 'id_2': 361, 'id_3': 362, 'id_4': 363, 'id_5': 364, 'id_6': 365, 'id_7': 366, 'id_8': 367, 
 	        'id_9': 368, 'id_10': 369}
 	2018-07-12 15:03:27,014 INFO sqlalchemy.engine.base.Engine ROLLBACK
-	handle is closed'
+	handle is closed\
 *
 352是woman_models table最后一个id\
 应该是跟关闭进程池有关\
@@ -52,8 +52,8 @@ spider逻辑已经证明没问题了\
 把列表处理改成queue，可以不用考虑存和取的冲突 \
 原：
 
-*
-'
+*\
+'\
 	model_photo_list = 
 	        [
 	            [
@@ -63,8 +63,8 @@ spider逻辑已经证明没问题了\
 					for model_photo in model_photo_generator
 				] for model_photo_generator in model_photo_list
 		]
-'
-*
+'\
+*\
 
 ###7/13\
 一晚上起来，发现有的页面被删除了，在信息匹配那里引发了IndexError 加一个判断避雷\
