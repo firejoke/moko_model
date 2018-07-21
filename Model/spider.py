@@ -472,7 +472,7 @@ def spider(url):
 					print(ModelShow_error)
 				print('photo_url_q', photo_url_q.empty())
 			# 当profile_p 和 show_p 的任务都完结了的时候，
-			if not profile_p_live and not show_p_live and photo_q.empty():
+			if not profile_p_live and not show_p_live and photo_url_q.empty():
 				# 等待photo进程结束
 				photo_p.close()
 				photo_p.terminate()
