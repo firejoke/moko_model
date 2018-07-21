@@ -14,7 +14,9 @@ from .models import *
 
 # 首页spider
 def list_spider(url):
-	new_resp = requests.get(url = URL_DEFAULT + url, headers = HEADERS_DEFAULT, cookies = COOKIES)
+	new_resp = requests.get(url = URL_DEFAULT + url, headers = HEADERS_DEFAULT, cookies = COOKIES,proxies = {
+		'https': '123.54.106.54:65116'
+		})
 	new_html = etree.HTML(new_resp.text)
 	"""
 	1) Xpath模糊查找后用python处理
@@ -104,8 +106,10 @@ def model_post(url):
 	print(url)
 	# 直接拼的URL，其实应该模仿自然操作，先打开个人首页再进展示和个人信息，偷了个懒～
 	url = URL_DEFAULT + '/profile' + url[:-1] + '.html'
-	time.sleep(2)
-	new_resp = requests.get(url = url, headers = HEADERS_DEFAULT, cookies = COOKIES)
+	time.sleep(1)
+	new_resp = requests.get(url = url, headers = HEADERS_DEFAULT, cookies = COOKIES,proxies = {
+		'https': '117.85.83.196:10976'
+		})
 	new_html = etree.HTML(new_resp.text)
 	publisher = new_html.xpath('//a[@id="workNickName"]/text()')
 	publisher = publisher[0] if publisher else 0
@@ -298,7 +302,9 @@ def model_show_list(url_id):
 	print(url_id[0], url_id[1])
 	url = URL_DEFAULT + '/post' + url_id[0] + 'new/1.html' if url_id[0].endswith('/') else URL_DEFAULT + url_id[0]
 	time.sleep(1)
-	new_resp = requests.get(url = url, headers = HEADERS_DEFAULT, cookies = COOKIES)
+	new_resp = requests.get(url = url, headers = HEADERS_DEFAULT, cookies = COOKIES,proxies = {
+		'https': '61.145.34.36:29120'
+		})
 	new_html = etree.HTML(new_resp.text)
 	show_list = new_html.xpath('//a[@class="coverBg wC"]/@href')
 	# 以防页面被删除
@@ -332,7 +338,9 @@ def photo_list(url_id):
 	print(url_id)
 	url = URL_DEFAULT + url_id[0]
 	time.sleep(1)
-	new_resp = requests.get(url = url, headers = HEADERS_DEFAULT, cookies = COOKIES)
+	new_resp = requests.get(url = url, headers = HEADERS_DEFAULT, cookies = COOKIES,proxies = {
+		'https': '117.67.141.109:41362'
+		})
 	new_html = etree.HTML(new_resp.text)
 	# 又一个坑，有的页面被删除了......
 	photo_list = new_html.xpath('//p[@class="picBox"]//img/@src2')
@@ -383,7 +391,7 @@ def spider(url):
 			if not url:
 				print('Finish')
 				break
-			time.sleep(2)
+			time.sleep(1)
 		time.sleep(10)
 		# 因为首页pages不多，就等它跑完再开其他spider，也就40second，而且也不用担心数据库冲突，偷懒:-)
 		print('======首页爬完，开始model_info 和 show_list======')
@@ -464,7 +472,7 @@ def spider(url):
 					print(ModelShow_error)
 				print('photo_url_q', photo_url_q.empty())
 			# 当profile_p 和 show_p 的任务都完结了的时候，
-			if not profile_p_live:
+			if not profile_p_live and not show_p_live and photo_q.empty():
 				# 等待photo进程结束
 				photo_p.close()
 				photo_p.terminate()
